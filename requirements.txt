@@ -1,0 +1,4 @@
+PyGithub==2.1.1
+zulip==0.9.0
+python-dotenv==1.0.0
+gunicorn==21.2.0
