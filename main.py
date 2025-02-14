@@ -2,6 +2,7 @@ from bot import GitHubZulipBot, load_config
 import logging
 import argparse
 logger = logging.getLogger('bot')
+debug_logger = logging.getLogger('debug_logger')
 
 logging.basicConfig(
     level=logging.INFO,
@@ -41,15 +42,15 @@ def main():
 
         bot.run(check_interval=1800)
 
-    except InterruptedError or KeyboardInterrupt:
+    except (InterruptedError, KeyboardInterrupt):
         logger.info("Bot stopped by user.")
-        # with open("last_time.txt","w") as file:
-        #     file.write(str(bot.last_time));
+        bot.save_last_check()
     except Exception as e:
         logger.error(f"Failed to start bot: {str(e)}")
+        bot.save_last_check()
         raise
 
-    logger.info("Closing bot...")
+    debug_logger.info("Closing bot...")
 
 
 if __name__ == "__main__":

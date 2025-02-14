@@ -1,4 +1,5 @@
 import json
+import re
 import os
 from github import Github, GithubException, RateLimitExceededException
 from zulip import Client
@@ -105,7 +106,8 @@ class GitHubZulipBot:
 
     def add_repository(self, repo_name):
         """Add a repository to monitor."""
-        self.last_check[repo_name] = datetime.now(timezone.utc) - timedelta(days=10)
+        self.last_check[repo_name] = datetime.now(
+            timezone.utc)
         self.processed_events[repo_name] = set()
         debug_logger.info(
             f"Added repository: {repo_name} with initial check time set to {self.last_check[repo_name]}")
@@ -141,7 +143,7 @@ class GitHubZulipBot:
 
             last_event_time = self.last_check[repo_name]
 
-            for event in events:
+            for event in reversed(list(events)):
 
                 logger.info(
                     f"Found event: {event.type} at {event.created_at}")
@@ -208,6 +210,8 @@ class GitHubZulipBot:
             if repo_url:
                 message += f"Repository: {repo_url}/tree/{branch}\n\n"
 
+            pr_pattern = re.compile(r'\(#(\d+)\)')
+
             if commits:
                 for commit in commits:
 
@@ -220,6 +224,13 @@ class GitHubZulipBot:
 
                     if not commit_url:
                         commit_url = f"https://github.com/{repo_name}/commit/{commit_sha}"
+
+                    pr_match = pr_pattern.search(commit_msg)
+                    if pr_match:
+                        pr_number = pr_match.group(1)
+                        pr_url = f"https://github.com/{repo_name}/pull/{pr_number}"
+                        commit_msg = pr_pattern.sub(
+                            f'([#{pr_number}]({pr_url}))', commit_msg)
 
                     message += f"- {commit_msg} ([`{commit_sha}`]({commit_url}))\n"
 
@@ -260,7 +271,12 @@ class GitHubZulipBot:
             issue = payload.get('issue', {})
             action = payload.get('action', '')
 
-            message = f"📝 Issue #{issue.get('number')} {action} by {event.actor.login}\n\n"
+            url = issue.get('html_url')
+            number = issue.get('number')
+            if not url:
+                url = f"https://github.com/{repo_name}/issues/{number}"
+
+            message = f"📝 Issue [#{number}]({url}) {action} by {event.actor.login}\n\n"
 
             title = issue.get('title', 'No title')
             message += f"**Title**: {title}\n"
@@ -279,11 +295,6 @@ class GitHubZulipBot:
                 labels = [label.get('name', '') for label in issue['labels']]
                 if labels:
                     message += f"**Labels**: {', '.join(labels)}\n"
-
-            url = issue.get('html_url')
-            if not url:
-                url = f"https://github.com/{repo_name}/issues/{issue.get('number')}"
-            message += f"**URL**: {url}"
 
             if action == 'closed':
                 closed_at = issue.get('closed_at')
@@ -324,7 +335,12 @@ class GitHubZulipBot:
                     f"Missing PR or action in payload: {payload}")
                 return
 
-            message = f"🔀 Pull request #{pr.get('number')} {action} by {event.actor.login}\n\n"
+            url = pr.get('html_url')
+            number = pr.get('number')
+            if not url:
+                url = f"https://github.com/{repo_name}/pull/{number}"
+
+            message = f"🔀 Pull request [#{number}]({url}) {action} by {event.actor.login}\n\n"
 
             title = pr.get('title', 'No title')
             message += f"**Title**: {title}\n"
@@ -343,11 +359,6 @@ class GitHubZulipBot:
                 labels = [label.get('name', '') for label in pr['labels']]
                 if labels:
                     message += f"**Labels**: {', '.join(labels)}\n"
-
-            url = pr.get('html_url')
-            if not url:
-                url = f"https://github.com/{repo_name}/pull/{pr.get('number')}"
-            message += f"**URL**: {url}"
 
             self.send_zulip_message(
                 topic=f"{repo_name} Pull Requests",
@@ -380,7 +391,13 @@ class GitHubZulipBot:
                     f"Missing comment or issue in payload: {payload}")
                 return
 
-            message = f"💬 New comment on #{issue.get('number')} by {event.actor.login}\n\n"
+            url = comment.get('html_url')
+            number = issue.get('number')
+            if not url:
+                url = issue.get(
+                    'html_url', f"https://github.com/{repo_name}/issues/{number}")
+
+            message = f"💬 New comment on [#{number}]({url}) by {event.actor.login}\n\n"
             message += f"**On**: {issue.get('title', 'Unknown title')}\n"
 
             body = comment.get('body', '').strip()
@@ -388,12 +405,6 @@ class GitHubZulipBot:
                 if len(body) > 300:
                     body = body[:297] + "..."
                 message += f"**Comment**: {body}\n"
-
-            url = comment.get('html_url')
-            if not url:
-                url = issue.get(
-                    'html_url', f"https://github.com/{repo_name}/issues/{issue.get('number')}")
-            message += f"**URL**: {url}"
 
             if 'pull_request' in issue:
                 topic = f"{repo_name} Pull Request Comments"
@@ -415,15 +426,6 @@ class GitHubZulipBot:
             f"Bot started, monitoring repositories: {', '.join(self.last_check.keys())}")
 
         while True:
-            try:
-                for repo_name in self.last_check.keys():
-                    self.check_repository_events(repo_name)
-                self.save_last_check()
-                time.sleep(check_interval)
-            except InterruptedError or KeyboardInterrupt:
-                debug_logger.info("Bot stopped by user.")
-                self.save_last_check()
-            except Exception as e:
-                debug_logger.error(f"Error in main loop: {str(e)}")
-                self.save_last_check()
-                time.sleep(60)
+            for repo_name in self.last_check.keys():
+                self.check_repository_events(repo_name)
+            time.sleep(check_interval)
