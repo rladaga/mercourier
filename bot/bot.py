@@ -107,7 +107,7 @@ class GitHubZulipBot:
     def add_repository(self, repo_name):
         """Add a repository to monitor."""
         self.last_check[repo_name] = datetime.now(
-            timezone.utc)
+            timezone.utc) - timedelta(days=10)
         self.processed_events[repo_name] = set()
         debug_logger.info(
             f"Added repository: {repo_name} with initial check time set to {self.last_check[repo_name]}")
@@ -232,7 +232,11 @@ class GitHubZulipBot:
                         commit_msg = pr_pattern.sub(
                             f'([#{pr_number}]({pr_url}))', commit_msg)
 
-                    message += f"- {commit_msg} ([`{commit_sha}`]({commit_url}))\n"
+                    commit_time = datetime.strptime(
+                        commit.get('timestamp'), "%Y-%m-%dT%H:%M:%SZ")
+                    commit_time_str = commit_time.strftime("%Y-%m-%d %H:%M:%S")
+
+                    message += f"- {commit_msg} ([`{commit_sha}`]({commit_url})) at {commit_time_str}\n"
 
             else:
                 message += "\nNo commits found in push event."
@@ -276,7 +280,15 @@ class GitHubZulipBot:
             if not url:
                 url = f"https://github.com/{repo_name}/issues/{number}"
 
-            message = f"📝 Issue [#{number}]({url}) {action} by {event.actor.login}\n\n"
+            created_at = issue.get('created_at')
+            if created_at:
+                created_at = datetime.strptime(
+                    created_at, "%Y-%m-%dT%H:%M:%SZ")
+                created_at_str = created_at.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                created_at_str = "Unknown"
+
+            message = f"📝 Issue [#{number}]({url}) {action} by {event.actor.login} at {created_at_str}\n\n"
 
             title = issue.get('title', 'No title')
             message += f"**Title**: {title}\n"
@@ -299,7 +311,10 @@ class GitHubZulipBot:
             if action == 'closed':
                 closed_at = issue.get('closed_at')
                 if closed_at:
-                    message += f"\n**Closed at**: {closed_at}"
+                    closed_at = datetime.strptime(
+                        closed_at, "%Y-%m-%dT%H:%M:%SZ")
+                    closed_at_str = closed_at.strftime("%Y-%m-%d %H:%M:%S")
+                    message += f"\n**Closed at**: {closed_at_str}"
 
                 state_reason = issue.get('state_reason')
                 if state_reason:
@@ -340,7 +355,23 @@ class GitHubZulipBot:
             if not url:
                 url = f"https://github.com/{repo_name}/pull/{number}"
 
-            message = f"🔀 Pull request [#{number}]({url}) {action} by {event.actor.login}\n\n"
+            created_at = pr.get('created_at')
+            if created_at:
+                created_at = datetime.strptime(
+                    created_at, "%Y-%m-%dT%H:%M:%SZ")
+                created_at_str = created_at.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                created_at_str = "Unknown"
+
+            updated_at = pr.get('updated_at')
+            if updated_at:
+                updated_at = datetime.strptime(
+                    updated_at, "%Y-%m-%dT%H:%M:%SZ")
+                updated_at_str = updated_at.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                updated_at_str = "Unknown"
+
+            message = f"🔀 Pull request [#{number}]({url}) {action} by {event.actor.login} at {created_at_str}\n\n"
 
             title = pr.get('title', 'No title')
             message += f"**Title**: {title}\n"
@@ -354,6 +385,7 @@ class GitHubZulipBot:
 
             message += f"**Changes**: +{pr.get('additions', 0)} -{pr.get('deletions', 0)}\n"
             message += f"**Files changed**: {pr.get('changed_files', 0)}\n"
+            message += f"**Last updated**: {updated_at_str}\n"
 
             if pr.get('labels'):
                 labels = [label.get('name', '') for label in pr['labels']]
@@ -397,7 +429,15 @@ class GitHubZulipBot:
                 url = issue.get(
                     'html_url', f"https://github.com/{repo_name}/issues/{number}")
 
-            message = f"💬 New comment on [#{number}]({url}) by {event.actor.login}\n\n"
+            created_at = comment.get('created_at')
+            if created_at:
+                created_at = datetime.strptime(
+                    created_at, "%Y-%m-%dT%H:%M:%SZ")
+                created_at_str = created_at.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                created_at_str = "Unknown"
+
+            message = f"💬 New comment on [#{number}]({url}) by {event.actor.login} at {created_at_str}\n\n"
             message += f"**On**: {issue.get('title', 'Unknown title')}\n"
 
             body = comment.get('body', '').strip()
