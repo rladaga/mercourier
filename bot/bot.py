@@ -321,7 +321,7 @@ class GitHubZulipBot:
                     message += f"\n**Reason**: {state_reason}"
 
             self.send_zulip_message(
-                topic=f"{repo_name} Issues",
+                topic=f"{repo_name}/issues/{number}",
                 content=message
             )
 
@@ -391,7 +391,7 @@ class GitHubZulipBot:
                     message += f"| Labels | {', '.join(labels)} |\n"
 
             self.send_zulip_message(
-                topic=f"{repo_name} Pull Requests",
+                topic=f"{repo_name}/pr/{number}",
                 content=message
             )
 
@@ -439,15 +439,12 @@ class GitHubZulipBot:
             message += f"**On**: {issue.get('title', 'Unknown title')}\n"
 
             body = comment.get('body', '').strip()
-            if body:
-                if len(body) > 300:
-                    body = body[:297] + "..."
-                message += f"**Comment**: {body}\n"
+            message += f"**Comment**: {body}\n"
 
             if 'pull_request' in issue:
-                topic = f"{repo_name} Pull Request Comments"
+                topic = f"{repo_name}/pr/{number}"
             else:
-                topic = f"{repo_name} Issue Comments"
+                topic = f"{repo_name}/issues/{number}"
 
             self.send_zulip_message(
                 topic=topic,
