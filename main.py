@@ -51,7 +51,7 @@ def main():
         signal.signal(signal.SIGTERM, handle_signal)
         signal.signal(signal.SIGINT, handle_signal)
 
-        bot.run(check_interval=1800)
+        bot.run(check_interval=10800)
 
     except (InterruptedError, KeyboardInterrupt):
         logger.info("Bot stopped by user.")
