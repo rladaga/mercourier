@@ -346,8 +346,7 @@ class GitHubZulipBot:
             action = payload.get('action', '')
 
             if not pr or not action:
-                debug_logger.error(
-                    f"Missing PR or action in payload: {payload}")
+                debug_logger.error(f"Missing PR or action in payload: {payload}")
                 return
 
             url = pr.get('html_url')
@@ -357,40 +356,39 @@ class GitHubZulipBot:
 
             created_at = pr.get('created_at')
             if created_at:
-                created_at = datetime.strptime(
-                    created_at, "%Y-%m-%dT%H:%M:%SZ")
+                created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
                 created_at_str = created_at.strftime("%Y-%m-%d %H:%M:%S")
             else:
                 created_at_str = "Unknown"
 
             updated_at = pr.get('updated_at')
             if updated_at:
-                updated_at = datetime.strptime(
-                    updated_at, "%Y-%m-%dT%H:%M:%SZ")
+                updated_at = datetime.strptime(updated_at, "%Y-%m-%dT%H:%M:%SZ")
                 updated_at_str = updated_at.strftime("%Y-%m-%d %H:%M:%S")
             else:
                 updated_at_str = "Unknown"
 
             message = f"🔀 Pull request [#{number}]({url}) {action} by {event.actor.login} at {created_at_str}\n\n"
 
-            title = pr.get('title', 'No title')
-            message += f"**Title**: {title}\n"
+            message += "| **Title** | " + pr.get('title', 'No title') + " |\n"
+            message += "|-------|-------|\n"
+            message += f"| Changes | +{pr.get('additions', 0)} -{pr.get('deletions', 0)} |\n"
+            message += f"| Files changed | {pr.get('changed_files', 0)} |\n"
+            message += f"| Last updated | {updated_at_str} |\n"
 
             if action == 'opened' and pr.get('body'):
                 body = pr.get('body', '').strip()
                 if body:
-                    if len(body) > 300:
-                        body = body[:297] + "..."
-                    message += f"**Description**: {body}\n"
+                    body = body.replace("|", "\\|")
+                    message += "\n**Description:**\n"
+                    message += body
 
-            message += f"**Changes**: +{pr.get('additions', 0)} -{pr.get('deletions', 0)}\n"
-            message += f"**Files changed**: {pr.get('changed_files', 0)}\n"
-            message += f"**Last updated**: {updated_at_str}\n"
+
 
             if pr.get('labels'):
                 labels = [label.get('name', '') for label in pr['labels']]
                 if labels:
-                    message += f"**Labels**: {', '.join(labels)}\n"
+                    message += f"| Labels | {', '.join(labels)} |\n"
 
             self.send_zulip_message(
                 topic=f"{repo_name} Pull Requests",
