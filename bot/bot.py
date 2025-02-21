@@ -295,10 +295,8 @@ class GitHubZulipBot:
 
             if action == 'opened' and issue.get('body'):
                 body = issue.get('body', '').strip()
-                if body:
-                    if len(body) > 300:
-                        body = body[:297] + "..."
-                    message += f"**Description**: {body}\n"
+
+                message += f"**Description**: {body}\n"
 
             if issue.get('comments'):
                 message += f"**Comments**: {issue['comments']}\n"
@@ -346,7 +344,8 @@ class GitHubZulipBot:
             action = payload.get('action', '')
 
             if not pr or not action:
-                debug_logger.error(f"Missing PR or action in payload: {payload}")
+                debug_logger.error(
+                    f"Missing PR or action in payload: {payload}")
                 return
 
             url = pr.get('html_url')
@@ -356,14 +355,16 @@ class GitHubZulipBot:
 
             created_at = pr.get('created_at')
             if created_at:
-                created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
+                created_at = datetime.strptime(
+                    created_at, "%Y-%m-%dT%H:%M:%SZ")
                 created_at_str = created_at.strftime("%Y-%m-%d %H:%M:%S")
             else:
                 created_at_str = "Unknown"
 
             updated_at = pr.get('updated_at')
             if updated_at:
-                updated_at = datetime.strptime(updated_at, "%Y-%m-%dT%H:%M:%SZ")
+                updated_at = datetime.strptime(
+                    updated_at, "%Y-%m-%dT%H:%M:%SZ")
                 updated_at_str = updated_at.strftime("%Y-%m-%d %H:%M:%S")
             else:
                 updated_at_str = "Unknown"
@@ -382,8 +383,6 @@ class GitHubZulipBot:
                     body = body.replace("|", "\\|")
                     message += "\n**Description:**\n"
                     message += body
-
-
 
             if pr.get('labels'):
                 labels = [label.get('name', '') for label in pr['labels']]
