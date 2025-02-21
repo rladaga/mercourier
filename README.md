@@ -12,6 +12,12 @@ Mercourier is a very simple notification bot that bridges GitHub repositories an
 
 Stay informed about your GitHub repositories without constantly checking GitHub or being overwhelmed by email notifications. Mercourier brings important updates directly to your team's communication platform, making it easier to track development activities and respond promptly to changes.
 
+## Bot Configuration
+
+To set up the bot and get the `ZULIP_EMAIL` and `ZULIP_API_KEY`, in Zulip you need to click on the configuration wheel right beside your profile picture, there you are going to click on the option "Personal settings" --> "Bots" --> "Add a new bot". In "Bot type" you are going to choose "Generic bot" and then fill in the name and email with what you want, once you click "Add" you are going to see the bot is created and there you will see the `API KEY` and `BOT EMAIL` you need to put inside the `.env` variables.
+
+You will also need a [Github Personal Access Token (classic)](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic) placed in the `.env`
+
 ## Deploy
 
 To deploy this project we used a basic DigitalOcean Droplet with an Arch-Linux image, once the droplet is configured this are the steps we took:
@@ -21,6 +27,8 @@ Inside the /opt folder
 ```bash
 git clone git@github.com:rladaga/mercourier.git
 ```
+
+Don't forget to create your `.env` file!
 
 Then:
 
