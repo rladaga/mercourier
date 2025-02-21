@@ -1,6 +1,9 @@
 from bot import GitHubZulipBot, load_config
 import logging
 import argparse
+import signal
+import sys
+
 logger = logging.getLogger('bot')
 debug_logger = logging.getLogger('debug_logger')
 
@@ -13,7 +16,6 @@ logging.basicConfig(
 def main():
 
     logger.info("Starting bot...")
-    # last_time=open("last_time.txt","r").read();
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", action='store_true', help="Enable debug mode")
@@ -39,6 +41,15 @@ def main():
         for repo in config['repositories']:
             if repo not in bot.last_check:
                 bot.add_repository(repo)
+
+        def handle_signal(signum, frame):
+            logger.info(
+                "Received signal to stop. Saving last check and exiting...")
+            bot.save_last_check()
+            sys.exit(0)
+
+        signal.signal(signal.SIGTERM, handle_signal)
+        signal.signal(signal.SIGINT, handle_signal)
 
         bot.run(check_interval=1800)
 
