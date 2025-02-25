@@ -29,10 +29,10 @@ def main():
 
         bot = GitHubZulipBot(
             github_token=config['github_token'],
-            zulip_email=config['zulip_email'],
-            zulip_api_key=config['zulip_api_key'],
-            zulip_site=config['zulip_site'],
-            stream_name=config['zulip_stream'],
+            zulip_email=config.get('zulip_email'),
+            zulip_api_key=config.get('zulip_api_key'),
+            zulip_site=config.get('zulip_site'),
+            stream_name=config.get('zulip_stream'),
             zulip_on=zulip_on
         )
 

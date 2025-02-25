@@ -31,14 +31,10 @@ class ZulipHandler(logging.Handler):
 
 
 class GitHubZulipBot:
-    def __init__(self, github_token, zulip_email, zulip_api_key, zulip_site, stream_name, zulip_on=True, last_check_file="last_check.json"):
+    def __init__(self, github_token, zulip_email=None, zulip_api_key=None, zulip_site=None, stream_name=None, zulip_on=True, last_check_file="last_check.json"):
         """Initialize the bot with GitHub and Zulip credentials."""
         self.github = Github(github_token)
-        self.zulip = Client(
-            email=zulip_email,
-            api_key=zulip_api_key,
-            site=zulip_site
-        )
+
         self.stream_name = stream_name
         self.last_check = {}
         self.processed_events = {}
@@ -52,15 +48,20 @@ class GitHubZulipBot:
             "IssueCommentEvent": self.handle_comment_event,
         }
 
-        zulip_handler = ZulipHandler(self.zulip, stream_name, "Bot Logs")
-        zulip_handler.setLevel(logging.DEBUG)
-        zulip_handler.setFormatter(logging.Formatter(
-            '*%(asctime)s* - **%(name)s** - `%(levelname)s`\n\n%(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
-        debug_logger.addHandler(zulip_handler)
-
         debug_logger.info("Bot initialized successfully")
 
         if self.zulip_on:
+            self.zulip = Client(
+                email=zulip_email,
+                api_key=zulip_api_key,
+                site=zulip_site
+            )
+
+            zulip_handler = ZulipHandler(self.zulip, stream_name, "Bot Logs")
+            zulip_handler.setLevel(logging.DEBUG)
+            zulip_handler.setFormatter(logging.Formatter(
+                '*%(asctime)s* - **%(name)s** - `%(levelname)s`\n\n%(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
+            debug_logger.addHandler(zulip_handler)
             debug_logger.info(
                 f"Zulip client connected to {zulip_site} as {zulip_email}")
         else:

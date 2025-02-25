@@ -85,7 +85,8 @@ sudo systemctl status mercourier
 
 ## Instructions to debug locally
 
-The -d flag enables the debug mode so the bot doesn't send the messages to each Zulip topic.
+For the debug mode you will only need to have the `GITHUB_TOKEN` and `GITHUB_REPOS` variables set in the `.env`.
+The -d flag enables the debug mode so the bot doesn't send the messages to Zulip and you can see all the logs in your console.
 
 ```
 python3 -m venv venv
