@@ -6,6 +6,7 @@ Mercourier is a very simple notification bot that bridges GitHub repositories an
 
 - Monitors GitHub repositories of your choice
 - Delivers notifications about issues, pull requests, commits, and other GitHub events
+- Sends it's own logs to an specific `Zulip` topic
 
 ## Why Use Mercourier?
 
@@ -13,15 +14,13 @@ Stay informed about your GitHub repositories without constantly checking GitHub 
 
 ## Bot Configuration
 
-To set up the bot and get the `ZULIP_EMAIL` and `ZULIP_API_KEY`, in Zulip you need to click on the configuration wheel right beside your profile picture, there you are going to click on the option "Personal settings" --> "Bots" --> "Add a new bot". In "Bot type" you are going to choose "Generic bot" and then fill in the name and email with what you want, once you click "Add" you are going to see the bot is created and there you will see the `API KEY` and `BOT EMAIL` you need to put inside the `.env` variables.
+To set up the bot and obtain the `ZULIP_EMAIL` and `ZULIP_API_KEY`, go to `Zulip` and click the configuration wheel next to your profile picture. Then, navigate to "Personal settings" → "Bots" → "Add a new bot". Select Generic bot as the bot type, enter a name and email of your choice, and click Add. Once created, you'll see the bot's `API KEY` and `BOT EMAIL`, which you need to add to the `.env` file.
+
+Inside the `.env` file, specify each repository you want to be notified about in the `GITHUB_REPOS` variable. Refer to `.env.example` for guidance on the correct format.
 
 You will also need a [Github Personal Access Token (classic)](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic) placed in the `.env`
 
-## Deploy
-
-To deploy this project we used a basic DigitalOcean Droplet with an Arch-Linux image, once the droplet is configured this are the steps we took:
-
-Inside the /opt folder
+## Deploy/Installation
 
 ```bash
 git clone git@github.com:rladaga/mercourier.git
@@ -59,9 +58,9 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/mercourier
-Environment=PATH=/opt/mercourier/venv/bin
-ExecStart=/opt/mercourier/venv/bin/python /opt/mercourier/main.py
+WorkingDirectory=/opt/mercourier # Change if you cloned in other path than "/opt"
+Environment=PATH=/opt/mercourier/venv/bin # Change if you cloned in other path than "/opt"
+ExecStart=/opt/mercourier/venv/bin/python /opt/mercourier/main.py # Change if you cloned in other path than "/opt"
 Restart=always
 
 [Install]
