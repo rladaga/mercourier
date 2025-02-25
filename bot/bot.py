@@ -108,7 +108,7 @@ class GitHubZulipBot:
     def add_repository(self, repo_name):
         """Add a repository to monitor."""
         self.last_check[repo_name] = datetime.now(
-            timezone.utc) - timedelta(days=1)
+            timezone.utc)
         self.processed_events[repo_name] = set()
         debug_logger.info(
             f"Added repository: {repo_name} with initial check time set to {self.last_check[repo_name]}")
