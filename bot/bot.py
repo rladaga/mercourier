@@ -55,7 +55,7 @@ class GitHubZulipBot:
         zulip_handler = ZulipHandler(self.zulip, stream_name, "Bot Logs")
         zulip_handler.setLevel(logging.DEBUG)
         zulip_handler.setFormatter(logging.Formatter(
-            '*%(asctime)s* - **%(name)s** - `%(levelname)s`\n\n%(message)s'))
+            '*%(asctime)s* - **%(name)s** - `%(levelname)s`\n\n%(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
         debug_logger.addHandler(zulip_handler)
 
         debug_logger.info("Bot initialized successfully")
