@@ -108,7 +108,7 @@ class GitHubZulipBot:
     def add_repository(self, repo_name):
         """Add a repository to monitor."""
         self.last_check[repo_name] = datetime.now(
-            timezone.utc)
+            timezone.utc) - timedelta(days=1)
         self.processed_events[repo_name] = set()
         debug_logger.info(
             f"Added repository: {repo_name} with initial check time set to {self.last_check[repo_name]}")
@@ -165,8 +165,7 @@ class GitHubZulipBot:
 
                 last_event_time = max(last_event_time, event_time)
 
-            self.last_check[repo_name] = max(
-                last_event_time, datetime.now(timezone.utc))
+            self.last_check[repo_name] = last_event_time
             debug_logger.info(
                 f"Updating last check from {repo_name} to {last_event_time}")
 
