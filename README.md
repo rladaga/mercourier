@@ -6,7 +6,6 @@ Mercourier is a very simple notification bot that bridges GitHub repositories an
 
 - Monitors GitHub repositories of your choice
 - Delivers notifications about issues, pull requests, commits, and other GitHub events
-- Integrates seamlessly with your Zulip workspace
 
 ## Why Use Mercourier?
 
