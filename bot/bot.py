@@ -135,6 +135,12 @@ class GitHubZulipBot:
             debug_logger.info(f"Checking events for {repo_name}...")
             events = get(f"https://api.github.com/repos/{repo_name}/events",
                          headers={'If-None-Match': self.last_check_etag[repo_name]})
+
+            if events.status_code == 304:
+                debug_logger.info(
+                    f"No new events for {repo_name}.")
+                return
+
             events_json = json.loads(events.content)
             etag = events.headers['ETag']
 
