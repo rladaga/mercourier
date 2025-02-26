@@ -72,7 +72,7 @@ class GitHubZulipBot:
         for repo_name, last_etag in self.last_check_etag.items():
             state_data[repo_name] = {
                 'last_etag': last_etag,
-                'processed_events': list(self.processed_events[repo_name])
+                'processed_events': self.processed_events[repo_name]
             }
 
         with open(self.last_check_file, 'w') as file:
@@ -91,8 +91,7 @@ class GitHubZulipBot:
 
                 self.last_check_etag[repo_name] = data['last_etag']
 
-                self.processed_events[repo_name] = set(
-                    data['processed_events'])
+                self.processed_events[repo_name] = data['processed_events']
 
                 debug_logger.info(
                     f"Added repository: {repo_name} with ETag {self.last_check_etag[repo_name]}")
@@ -106,7 +105,7 @@ class GitHubZulipBot:
     def add_repository(self, repo_name):
         """Add a repository to monitor."""
         self.last_check_etag[repo_name] = ""
-        self.processed_events[repo_name] = set()
+        self.processed_events[repo_name] = None
         debug_logger.info(
             f"Added repository: {repo_name} with last ETag: {self.last_check_etag[repo_name]}")
 
@@ -129,7 +128,6 @@ class GitHubZulipBot:
 
     def check_repository_events(self, repo_name):
         """Checks new events in every repo."""
-        self.processed_events[repo_name] = set()
 
         try:
             debug_logger.info(f"Checking events for {repo_name}...")
@@ -154,24 +152,20 @@ class GitHubZulipBot:
                     f"Found event: {event['type']} at {event['created_at']}")
                 event_id = event['id']
 
-                if event_id in self.processed_events[repo_name]:
+                if self.processed_events[repo_name] and event_id <= self.processed_events[repo_name]:
                     logger.info(
                         f"Skipping already processed event: {event['type']} at {event['created_at']}")
                     continue
 
-                self.processed_events[repo_name].add(event_id)
+                self.processed_events[repo_name] = event_id
                 logger.info(f"Processing event: {event['type']} ({event_id})")
 
                 handler = self.handlers.get(event['type'])
                 if handler:
                     handler(repo_name, event)
 
-            self.last_check_etag[repo_name] = etag
-
             debug_logger.info(
                 f"Updating last etag from {repo_name} to {etag}")
-
-            print(self.processed_events[repo_name])
 
         except Exception as e:
             debug_logger.error(
