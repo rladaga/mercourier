@@ -7,7 +7,6 @@ def load_config():
     load_dotenv()
 
     required_vars = [
-        'GITHUB_TOKEN',
         'ZULIP_EMAIL',
         'ZULIP_API_KEY',
         'ZULIP_SITE',
@@ -21,7 +20,6 @@ def load_config():
             f"Missing required environment variables: {', '.join(missing_vars)}")
 
     return {
-        'github_token': os.getenv('GITHUB_TOKEN'),
         'zulip_email': os.getenv('ZULIP_EMAIL'),
         'zulip_api_key': os.getenv('ZULIP_API_KEY'),
         'zulip_site': os.getenv('ZULIP_SITE'),

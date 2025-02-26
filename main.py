@@ -28,7 +28,6 @@ def main():
         config = load_config()
 
         bot = GitHubZulipBot(
-            github_token=config['github_token'],
             zulip_email=config.get('zulip_email'),
             zulip_api_key=config.get('zulip_api_key'),
             zulip_site=config.get('zulip_site'),
@@ -39,7 +38,7 @@ def main():
         bot.load_last_check()
 
         for repo in config['repositories']:
-            if repo not in bot.last_check:
+            if repo not in bot.last_check_etag:
                 bot.add_repository(repo)
 
         def handle_signal(signum, frame):

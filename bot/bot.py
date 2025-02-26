@@ -1,7 +1,7 @@
 import json
 import re
 import os
-from github import Github, GithubException, RateLimitExceededException
+from requests import get
 from zulip import Client
 import time
 from datetime import datetime, timezone, timedelta
@@ -31,12 +31,11 @@ class ZulipHandler(logging.Handler):
 
 
 class GitHubZulipBot:
-    def __init__(self, github_token, zulip_email=None, zulip_api_key=None, zulip_site=None, stream_name=None, zulip_on=True, last_check_file="last_check.json"):
+    def __init__(self, zulip_email=None, zulip_api_key=None, zulip_site=None, stream_name=None, zulip_on=True, last_check_file="last_check.json"):
         """Initialize the bot with GitHub and Zulip credentials."""
-        self.github = Github(github_token)
 
         self.stream_name = stream_name
-        self.last_check = {}
+        self.last_check_etag = {}
         self.processed_events = {}
         self.zulip_on = zulip_on
         self.last_check_file = last_check_file
@@ -68,21 +67,21 @@ class GitHubZulipBot:
             debug_logger.info("Zulip client not connected (debug mode)")
 
     def save_last_check(self):
-        """Save last check times for all repositories to file."""
+        """ Save last check etag for all repositories to file. """
         state_data = {}
-        for repo_name, last_time in self.last_check.items():
+        for repo_name, last_etag in self.last_check_etag.items():
             state_data[repo_name] = {
-                'last_check': last_time.isoformat(),
+                'last_etag': last_etag,
                 'processed_events': list(self.processed_events[repo_name])
             }
 
         with open(self.last_check_file, 'w') as file:
             json.dump(state_data, file)
         debug_logger.info(
-            "Last check times and processed events saved to file")
+            "Last check etag and processed events saved to file")
 
     def load_last_check(self):
-        """Load last check times and processed events from file."""
+        """ Load last check etag and processed events from file. """
 
         if os.path.exists(self.last_check_file):
             with open(self.last_check_file, 'r') as file:
@@ -90,28 +89,26 @@ class GitHubZulipBot:
 
             for repo_name, data in state_data.items():
 
-                self.last_check[repo_name] = datetime.fromisoformat(
-                    data['last_check'])
+                self.last_check_etag[repo_name] = data['last_etag']
 
                 self.processed_events[repo_name] = set(
                     data['processed_events'])
 
                 debug_logger.info(
-                    f"Added repository: {repo_name} with initial check time set to {self.last_check[repo_name]}")
+                    f"Added repository: {repo_name} with ETag {self.last_check_etag[repo_name]}")
 
             debug_logger.info(
-                "Last check times and processed events loaded from file")
+                "Last check etag and processed events loaded from file")
         else:
             debug_logger.info(
                 "Last check file not found. State will be initialized when repositories are added.")
 
     def add_repository(self, repo_name):
         """Add a repository to monitor."""
-        self.last_check[repo_name] = datetime.now(
-            timezone.utc)
+        self.last_check_etag[repo_name] = ""
         self.processed_events[repo_name] = set()
         debug_logger.info(
-            f"Added repository: {repo_name} with initial check time set to {self.last_check[repo_name]}")
+            f"Added repository: {repo_name} with last ETag: {self.last_check_etag[repo_name]}")
 
     def send_zulip_message(self, topic, content):
         """Send a message to Zulip stream."""
@@ -136,46 +133,40 @@ class GitHubZulipBot:
 
         try:
             debug_logger.info(f"Checking events for {repo_name}...")
-            repo = self.github.get_repo(repo_name)
-            events = repo.get_events()
+            events = get(f"https://api.github.com/repos/{repo_name}/events",
+                         headers={'If-None-Match': self.last_check_etag[repo_name]})
+            events_json = json.loads(events.content)
+            etag = events.headers['ETag']
+
+            self.last_check_etag[repo_name] = etag
 
             debug_logger.info(
-                f"Last check time for {repo_name}: {self.last_check[repo_name]}")
+                f"Last ETag for {repo_name}: {self.last_check_etag[repo_name]}")
 
-            last_event_time = self.last_check[repo_name]
-
-            for event in reversed(list(events)):
-
+            for event in reversed((events_json)):
                 logger.info(
-                    f"Found event: {event.type} at {event.created_at}")
-                event_id = event.id
-                event_time = event.created_at
+                    f"Found event: {event['type']} at {event['created_at']}")
+                event_id = event['id']
 
-                if event_time <= last_event_time or event_id in self.processed_events[repo_name]:
+                if event_id in self.processed_events[repo_name]:
                     logger.info(
-                        f"Skipping old or already processed event: {event.type} at {event.created_at}")
+                        f"Skipping already processed event: {event['type']} at {event['created_at']}")
                     continue
 
                 self.processed_events[repo_name].add(event_id)
-                logger.info(f"Processing event: {event.type} ({event_id})")
+                logger.info(f"Processing event: {event['type']} ({event_id})")
 
-                handler = self.handlers.get(event.type)
+                handler = self.handlers.get(event['type'])
                 if handler:
                     handler(repo_name, event)
 
-                last_event_time = max(last_event_time, event_time)
+            self.last_check_etag[repo_name] = etag
 
-            self.last_check[repo_name] = last_event_time
             debug_logger.info(
-                f"Updating last check from {repo_name} to {last_event_time}")
+                f"Updating last etag from {repo_name} to {etag}")
 
-        except RateLimitExceededException:
-            debug_logger.warning(
-                "GitHub rate limit reached. Sleeping for 60 seconds...")
-            time.sleep(60)
-        except GithubException as e:
-            debug_logger.error(
-                f"GitHub API error while checking {repo_name}: {str(e)}")
+            print(self.processed_events[repo_name])
+
         except Exception as e:
             debug_logger.error(
                 f"Unexpected error while checking {repo_name}: {str(e)}")
@@ -183,7 +174,7 @@ class GitHubZulipBot:
     def handle_push_event(self, repo_name, event):
         """Handle push events."""
         try:
-            event_data = event.raw_data
+            event_data = event
             if not event_data:
                 debug_logger.error("Empty event data received for push event")
                 return
@@ -202,7 +193,7 @@ class GitHubZulipBot:
 
             branch = ref.split('/')[-1]
 
-            message = f"🔨 New push by {event.actor.login} to `{branch}`\n\n"
+            message = f"🔨 New push by {event['actor'].get('login')} to `{branch}`\n\n"
             message += f"Number of commits: {len(commits)}\n"
 
             repo_url = event_data.get('repo', {}).get(
@@ -233,7 +224,7 @@ class GitHubZulipBot:
                             f'([#{pr_number}]({pr_url}))', commit_msg)
 
                     commit_time = datetime.strptime(
-                        commit.get('timestamp'), "%Y-%m-%dT%H:%M:%SZ")
+                        event_data.get('created_at'), "%Y-%m-%dT%H:%M:%SZ")
                     commit_time_str = commit_time.strftime("%Y-%m-%d %H:%M:%S")
 
                     message += f"- {commit_msg} ([`{commit_sha}`]({commit_url})) at {commit_time_str}\n"
@@ -257,12 +248,12 @@ class GitHubZulipBot:
 
         except Exception as e:
             debug_logger.error(f"Error handling push event: {str(e)}")
-            debug_logger.debug(f"Problematic event data: {event.raw_data}")
+            debug_logger.debug(f"Problematic event data: {event}")
 
     def handle_issue_event(self, repo_name, event):
         """Handle issue events."""
         try:
-            event_data = event.raw_data
+            event_data = event
             if not event_data:
                 debug_logger.error("Empty event data received for issue event")
                 return
@@ -288,7 +279,7 @@ class GitHubZulipBot:
             else:
                 created_at_str = "Unknown"
 
-            message = f"📝 Issue [#{number}]({url}) {action} by {event.actor.login} at {created_at_str}\n\n"
+            message = f"📝 Issue [#{number}]({url}) {action} by {event['actor'].get('login')} at {created_at_str}\n\n"
 
             title = issue.get('title', 'No title')
             message += f"**Title**: {title}\n"
@@ -325,12 +316,12 @@ class GitHubZulipBot:
 
         except Exception as e:
             debug_logger.error(f"Error handling issue event: {str(e)}")
-            debug_logger.debug(f"Problematic event data: {event.raw_data}")
+            debug_logger.debug(f"Problematic event data: {event}")
 
     def handle_pr_event(self, repo_name, event):
         """Handle pull request events."""
         try:
-            event_data = event.raw_data
+            event_data = event
             if not event_data:
                 debug_logger.error("Empty event data received for PR event")
                 return
@@ -369,7 +360,7 @@ class GitHubZulipBot:
             else:
                 updated_at_str = "Unknown"
 
-            message = f"🔀 Pull request [#{number}]({url}) {action} by {event.actor.login} at {created_at_str}\n\n"
+            message = f"🔀 Pull request [#{number}]({url}) {action} by {event['actor'].get('login')} at {created_at_str}\n\n"
 
             message += "| **Title** | " + pr.get('title', 'No title') + " |\n"
             message += "|-------|-------|\n"
@@ -396,12 +387,12 @@ class GitHubZulipBot:
 
         except Exception as e:
             debug_logger.error(f"Error handling PR event: {str(e)}")
-            debug_logger.debug(f"Problematic event data: {event.raw_data}")
+            debug_logger.debug(f"Problematic event data: {event}")
 
     def handle_comment_event(self, repo_name, event):
         """Handle issue and PR comment events."""
         try:
-            event_data = event.raw_data
+            event_data = event
             if not event_data:
                 debug_logger.error(
                     "Empty event data received for comment event")
@@ -434,7 +425,7 @@ class GitHubZulipBot:
             else:
                 created_at_str = "Unknown"
 
-            message = f"💬 New comment on [#{number}]({url}) by {event.actor.login} at {created_at_str}\n\n"
+            message = f"💬 New comment on [#{number}]({url}) by {event['actor'].get('login')} at {created_at_str}\n\n"
             message += f"**On**: {issue.get('title', 'Unknown title')}\n"
 
             body = comment.get('body', '').strip()
@@ -452,14 +443,14 @@ class GitHubZulipBot:
 
         except Exception as e:
             debug_logger.error(f"Error handling comment event: {str(e)}")
-            debug_logger.debug(f"Problematic event data: {event.raw_data}")
+            debug_logger.debug(f"Problematic event data: {event}")
 
     def run(self, check_interval):
         """Run the bot with specified check interval (in seconds)."""
         debug_logger.info(
-            f"Bot started, monitoring repositories: {', '.join(self.last_check.keys())}")
+            f"Bot started, monitoring repositories: {', '.join(self.last_check_etag.keys())}")
 
         while True:
-            for repo_name in self.last_check.keys():
+            for repo_name in self.last_check_etag.keys():
                 self.check_repository_events(repo_name)
             time.sleep(check_interval)
