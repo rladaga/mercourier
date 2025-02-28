@@ -1,0 +1,14 @@
+[Unit]
+Description=GitHub to Zulip Notification Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/mercourier # Change if you cloned in other path than "/opt"
+Environment=PATH=/opt/mercourier/venv/bin # Change if you cloned in other path than "/opt"
+ExecStart=/opt/mercourier/venv/bin/python /opt/mercourier/main.py # Change if you cloned in other path than "/opt"
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
