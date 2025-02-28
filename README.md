@@ -22,16 +22,18 @@ Inside the `.env` file, specify each repository you want to be notified about in
 
 ```bash
 git clone git@github.com:rladaga/mercourier.git
+
+cd mercourier
 ```
 
 Don't forget to create your `.env` file!
 
-Then:
+The next steps can be done automatically by running the `install.sh` script.
+
+If you prefer to do it manually then do:
 
 ```bash
 sudo pacman -S python python-pip python-virtualenv
-
-cd mercourier
 
 python -m venv venv
 
@@ -40,7 +42,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-After this we created a systemd service to keep the bot running:
+After this create a systemd service to keep the bot running:
 
 ```bash
 sudo nvim /etc/systemd/system/mercourier.service
@@ -49,6 +51,8 @@ sudo nvim /etc/systemd/system/mercourier.service
 and add this content:
 
 ```bash
+CURRENT_DIR=$(pwd)
+
 [Unit]
 Description=GitHub to Zulip Notification Bot
 After=network.target
@@ -56,16 +60,16 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/mercourier # Change if you cloned in other path than "/opt"
-Environment=PATH=/opt/mercourier/venv/bin # Change if you cloned in other path than "/opt"
-ExecStart=/opt/mercourier/venv/bin/python /opt/mercourier/main.py # Change if you cloned in other path than "/opt"
+WorkingDirectory=${CURRENT_DIR}
+Environment=PATH=${CURRENT_DIR}/venv/bin
+ExecStart=${CURRENT_DIR}/venv/bin/python ${CURRENT_DIR}/main.py
 Restart=always
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Then we start the service:
+Then start the service:
 
 ```bash
 # Reload systemd
