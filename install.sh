@@ -7,22 +7,32 @@ sudo pacman -S python python-pip python-virtualenv
 python -m venv venv
 
 # Activate the virtual environment
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    source venv/bin/activate
-elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    source venv/bin/activate
-elif [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]]; then
-    source venv/Scripts/activate
-else
-    echo "Unsupported OS"
-    exit 1
-fi
+source venv/bin/activate
 
 # Install the required packages
 pip install -r requirements.txt
 
 # Create systemd service file
-sudo cp mercourier.service /etc/systemd/system/mercourier.service
+
+SERVICE_PATH="/etc/systemd/system/mercourier.service"
+CURRENT_DIR=$(pwd)
+
+SERVICE_CONTENT="[Unit]
+Description=GitHub to Zulip Notification Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=${CURRENT_DIR}
+Environment=PATH=${CURRENT_DIR}/venv/bin
+ExecStart=${CURRENT_DIR}/venv/bin/python ${CURRENT_DIR}/main.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target"
+
+echo "$SERVICE_CONTENT" | sudo tee "$SERVICE_PATH" > /dev/null
 
 # Reload systemd
 sudo systemctl daemon-reload
