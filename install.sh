@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Change into the directory where the script is located
-cd mercourier
+# Install necessary package
+sudo pacman -S python python-pip python-virtualenv
 
 # Create a virtual environment
 python -m venv venv
@@ -22,7 +22,7 @@ fi
 pip install -r requirements.txt
 
 # Create systemd service file
-cp mercourier.service /etc/systemd/system/mercourier.service
+sudo cp mercourier.service /etc/systemd/system/mercourier.service
 
 # Reload systemd
 sudo systemctl daemon-reload
