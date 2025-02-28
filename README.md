@@ -18,8 +18,6 @@ To set up the bot and obtain the `ZULIP_EMAIL` and `ZULIP_API_KEY`, go to `Zulip
 
 Inside the `.env` file, specify each repository you want to be notified about in the `GITHUB_REPOS` variable. Refer to `.env.example` for guidance on the correct format.
 
-You will also need a [Github Personal Access Token (classic)](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic) placed in the `.env`
-
 ## Deploy/Installation
 
 ```bash
@@ -85,7 +83,7 @@ sudo systemctl status mercourier
 
 ## Instructions to debug locally
 
-For the debug mode you will only need to have the `GITHUB_TOKEN` and `GITHUB_REPOS` variables set in the `.env`.
+For the debug mode you will only need to have the `GITHUB_REPOS` variables set in the `.env`.
 The -d flag enables the debug mode so the bot doesn't send the messages to Zulip and you can see all the logs in your console.
 
 ```
