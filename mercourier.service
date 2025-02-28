@@ -5,9 +5,9 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/mercourier # Change if you cloned in other path than "/opt"
-Environment=PATH=/opt/mercourier/venv/bin # Change if you cloned in other path than "/opt"
-ExecStart=/opt/mercourier/venv/bin/python /opt/mercourier/main.py # Change if you cloned in other path than "/opt"
+WorkingDirectory=$(shell pwd)/Proyectos/mercourier # Change if you cloned in other path than "/opt"
+Environment=PATH=$(shell pwd)/Proyectos/mercourier/venv/bin # Change if you cloned in other path than "/opt"
+ExecStart=$(shell pwd)/Proyectos/mercourier/venv/bin/python $(shell pwd)/Proyectos/mercourier/main.py # Change if you cloned in other path than "/opt"
 Restart=always
 
 [Install]
