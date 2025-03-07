@@ -5,7 +5,6 @@ import signal
 import sys
 
 logger = logging.getLogger('bot')
-debug_logger = logging.getLogger('debug_logger')
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,7 +59,7 @@ def main():
         bot.save_last_check()
         raise
 
-    debug_logger.info("Closing bot...")
+    logger.info("Closing bot...")
 
 
 if __name__ == "__main__":
