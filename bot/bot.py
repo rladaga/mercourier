@@ -34,7 +34,7 @@ class ZulipHandler(logging.Handler):
 
 class GitHubZulipBot:
     def __init__(self, zulip_email=None, zulip_api_key=None, zulip_site=None, stream_name=None, zulip_on=True, last_check_file="last_check.json"):
-        """Initialize the bot with GitHub and Zulip credentials."""
+        """Initialize the bot with Zulip credentials."""
 
         self.stream_name = stream_name
         self.last_check_etag = {}
@@ -74,7 +74,7 @@ class GitHubZulipBot:
 
             info_handler = ZulipHandler(
                 self.zulip, stream_name, "log/INFO")
-            info_handler.setLevel(logging.ERROR)
+            info_handler.setLevel(logging.INFO)
             info_handler.setFormatter(logging.Formatter(
                 '*%(asctime)s* - **%(name)s** - `%(levelname)s`\n\n%(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
             info_logger.addHandler(info_handler)
@@ -292,7 +292,8 @@ class GitHubZulipBot:
 
             message = f"📝 Issue [#{number}]({url}) {action}\n\n"
 
-            message += "| **Title** | " + issue.get('title', 'No title') + " |\n"
+            message += "| **Title** | " + \
+                issue.get('title', 'No title') + " |\n"
             message += "|-------|-------|\n"
             message += f"| Author | [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')}) |\n"
             message += f"| Date | {created_at_str} |\n"
