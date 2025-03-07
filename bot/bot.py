@@ -210,7 +210,7 @@ class GitHubZulipBot:
 
             branch = ref.split('/')[-1]
 
-            message = f"🔨 {len(commits)} new commits by [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')})\n\n"
+            message = f"🔨 {len(commits)} by [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')})\n\n"
 
             pr_pattern = re.compile(r'\(#(\d+)\)')
 
@@ -290,10 +290,17 @@ class GitHubZulipBot:
             else:
                 created_at_str = "Unknown"
 
-            message = f"📝 Issue [#{number}]({url}) {action} by {event['actor'].get('login')} at {created_at_str}\n\n"
+            message = f"📝 Issue [#{number}]({url}) {action}\n\n"
 
-            title = issue.get('title', 'No title')
-            message += f"# **Title**: {title}\n"
+            message += "| **Title** | " + issue.get('title', 'No title') + " |\n"
+            message += "|-------|-------|\n"
+            message += f"| Author | [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')}) |\n"
+            message += f"| Date | {created_at_str} |\n"
+
+            if issue.get('labels'):
+                labels = [label.get('name', '') for label in issue['labels']]
+                if labels:
+                    message += f"| Labels | {', '.join(labels)} |\n"
 
             if action == 'opened' and issue.get('body'):
                 body = issue.get('body', '').strip()
@@ -301,12 +308,7 @@ class GitHubZulipBot:
                 message += f"{body}\n"
 
             if issue.get('comments'):
-                message += f"**Comments**: {issue['comments']}\n"
-
-            if issue.get('labels'):
-                labels = [label.get('name', '') for label in issue['labels']]
-                if labels:
-                    message += f"**Labels**: {', '.join(labels)}\n"
+                message += f"| Comments | {issue['comments']} |\n"
 
             if action == 'closed':
                 closed_at = issue.get('closed_at')
@@ -314,11 +316,11 @@ class GitHubZulipBot:
                     closed_at = datetime.strptime(
                         closed_at, "%Y-%m-%dT%H:%M:%SZ")
                     closed_at_str = closed_at.strftime("%Y-%m-%d %H:%M:%S")
-                    message += f"\n**Closed at**: {closed_at_str}"
+                    message += f"| Closed at | {closed_at_str} |\n"
 
                 state_reason = issue.get('state_reason')
                 if state_reason:
-                    message += f"\n**Reason**: {state_reason}"
+                    message += f"| Reason | {state_reason} |\n"
 
             self.send_zulip_message(
                 topic=f"{repo_name}/issues/{number}",
@@ -371,10 +373,12 @@ class GitHubZulipBot:
             else:
                 updated_at_str = "Unknown"
 
-            message = f"🔀 Pull request [#{number}]({url}) {action} by {event['actor'].get('login')} at {created_at_str}\n\n"
+            message = f"🔀 Pull request [#{number}]({url}) {action}\n\n"
 
             message += "| **Title** | " + pr.get('title', 'No title') + " |\n"
             message += "|-------|-------|\n"
+            message += f"| Author | [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')}) |\n"
+            message += f"| Created at | {created_at_str} |\n"
             message += f"| Changes | +{pr.get('additions', 0)} -{pr.get('deletions', 0)} |\n"
             message += f"| Files changed | {pr.get('changed_files', 0)} |\n"
             message += f"| Last updated | {updated_at_str} |\n"
@@ -436,7 +440,7 @@ class GitHubZulipBot:
             else:
                 created_at_str = "Unknown"
 
-            message = f"💬 New comment on [#{number}]({url}) by {event['actor'].get('login')} at {created_at_str}\n\n"
+            message = f"💬 New comment on [#{number}]({url}) by [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')}) at {created_at_str}\n\n"
             message += f"# **Title**: {issue.get('title', 'Unknown title')}\n"
 
             body = comment.get('body', '').strip()
