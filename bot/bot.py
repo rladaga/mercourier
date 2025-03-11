@@ -7,26 +7,22 @@ import time
 from datetime import datetime, timezone, timedelta
 import logging
 
-debug_logger = logging.getLogger('debug_logger')
-error_logger = logging.getLogger('error_logger')
-info_logger = logging.getLogger('info_logger')
 
 logger = logging.getLogger('bot')
 
 
 class ZulipHandler(logging.Handler):
-    def __init__(self, zulip_client, stream_name, topic):
+    def __init__(self, zulip_client, stream_name):
         super().__init__()
         self.zulip_client = zulip_client
         self.stream_name = stream_name
-        self.topic = topic
 
     def emit(self, record):
         log_entry = self.format(record)
         request = {
             "type": "stream",
             "to": self.stream_name,
-            "topic": self.topic,
+            "topic": f'log/{record.levelname}',
             "content": log_entry
         }
         self.zulip_client.send_message(request)
@@ -50,7 +46,7 @@ class GitHubZulipBot:
             "IssueCommentEvent": self.handle_comment_event,
         }
 
-        info_logger.info("Bot initialized successfully")
+        logger.info("Bot initialized successfully")
 
         if self.zulip_on:
             self.zulip = Client(
@@ -59,31 +55,16 @@ class GitHubZulipBot:
                 site=zulip_site
             )
 
-            zulip_handler = ZulipHandler(
-                self.zulip, stream_name, "log/DEBUG")
+            zulip_handler = ZulipHandler(self.zulip, stream_name)
             zulip_handler.setLevel(logging.DEBUG)
             zulip_handler.setFormatter(logging.Formatter(
                 '*%(asctime)s* - **%(name)s** - `%(levelname)s`\n\n%(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
-            debug_logger.addHandler(zulip_handler)
+            logger.addHandler(zulip_handler)
 
-            error_handler = ZulipHandler(
-                self.zulip, stream_name, "log/ERROR")
-            error_handler.setLevel(logging.ERROR)
-            error_handler.setFormatter(logging.Formatter(
-                '*%(asctime)s* - **%(name)s** - `%(levelname)s`\n\n%(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
-            error_logger.addHandler(error_handler)
-
-            info_handler = ZulipHandler(
-                self.zulip, stream_name, "log/INFO")
-            info_handler.setLevel(logging.INFO)
-            info_handler.setFormatter(logging.Formatter(
-                '*%(asctime)s* - **%(name)s** - `%(levelname)s`\n\n%(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
-            info_logger.addHandler(info_handler)
-
-            info_logger.info(
+            logger.info(
                 f"Zulip client connected to {zulip_site} as {zulip_email}")
         else:
-            info_logger.info("Zulip client not connected (debug mode)")
+            logger.info("Zulip client not connected (debug mode)")
 
         self.load_last_check()
 
@@ -102,7 +83,7 @@ class GitHubZulipBot:
 
         with open(self.last_check_file, 'w') as file:
             json.dump(state_data, file)
-        info_logger.info(
+        logger.info(
             "Last check etag and processed events saved to file")
 
     def load_last_check(self):
@@ -118,20 +99,20 @@ class GitHubZulipBot:
 
                 self.processed_events[repo_name] = data['processed_events']
 
-                info_logger.info(
+                logger.info(
                     f"Added repository: {repo_name} with ETag {self.last_check_etag[repo_name]}")
 
-            info_logger.info(
+            logger.info(
                 "Last check etag and processed events loaded from file")
         else:
-            info_logger.info(
+            logger.info(
                 "Last check file not found. State will be initialized when repositories are added.")
 
     def add_repository(self, repo_name):
         """Add a repository to monitor."""
         self.last_check_etag[repo_name] = ""
         self.processed_events[repo_name] = None
-        info_logger.info(
+        logger.info(
             f"Added repository: {repo_name} with last ETag: {self.last_check_etag[repo_name]}")
 
     def send_zulip_message(self, topic, content):
@@ -146,9 +127,9 @@ class GitHubZulipBot:
         if self.zulip_on:
             response = self.zulip.send_message(request)
             if response['result'] != 'success':
-                error_logger.error(f"Failed to send message: {response}")
+                logger.error(f"Failed to send message: {response}")
         else:
-            info_logger.info(
+            logger.info(
                 f"Debug mode: Message not sent to Zulip: {request}")
 
     def check_repository_events(self, repo_name):
@@ -159,7 +140,7 @@ class GitHubZulipBot:
                          headers={'If-None-Match': self.last_check_etag[repo_name]})
 
             if events.status_code == 304:
-                info_logger.info(
+                logger.info(
                     f"Checking events for {repo_name}...No new events.")
                 return
 
@@ -188,11 +169,11 @@ class GitHubZulipBot:
                 if handler:
                     handler(repo_name, event)
 
-            info_logger.info(
+            logger.info(
                 f"Checking events for {repo_name}...Found events, updating last etag to {etag}")
 
         except Exception as e:
-            error_logger.error(
+            logger.error(
                 f"Unexpected error while checking {repo_name}: {str(e)}")
 
     def handle_push_event(self, repo_name, event):
@@ -200,19 +181,19 @@ class GitHubZulipBot:
         try:
             event_data = event
             if not event_data:
-                error_logger.error("Empty event data received for push event")
+                logger.error("Empty event data received for push event")
                 return
 
             payload = event_data.get('payload', {})
             if not payload:
-                error_logger.error("No payload found in event data")
+                logger.error("No payload found in event data")
                 return
 
             commits = payload.get('commits', [])
             ref = payload.get('ref', '')
 
             if not ref:
-                error_logger.error(f"Missing ref in payload: {payload}")
+                logger.error(f"Missing ref in payload: {payload}")
                 return
 
             branch = ref.split('/')[-1]
@@ -265,20 +246,20 @@ class GitHubZulipBot:
             )
 
         except Exception as e:
-            error_logger.error(f"Error handling push event: {str(e)}")
-            debug_logger.debug(f"Problematic event data: {event}")
+            logger.error(f"Error handling push event: {str(e)}")
+            logger.debug(f"Problematic event data: {event}")
 
     def handle_issue_event(self, repo_name, event):
         """Handle issue events."""
         try:
             event_data = event
             if not event_data:
-                error_logger.error("Empty event data received for issue event")
+                logger.error("Empty event data received for issue event")
                 return
 
             payload = event_data.get('payload', {})
             if not payload:
-                error_logger.error("No payload found in event data")
+                logger.error("No payload found in event data")
                 return
 
             issue = payload.get('issue', {})
@@ -336,27 +317,27 @@ class GitHubZulipBot:
             )
 
         except Exception as e:
-            error_logger.error(f"Error handling issue event: {str(e)}")
-            debug_logger.debug(f"Problematic event data: {event}")
+            logger.error(f"Error handling issue event: {str(e)}")
+            logger.debug(f"Problematic event data: {event}")
 
     def handle_pr_event(self, repo_name, event):
         """Handle pull request events."""
         try:
             event_data = event
             if not event_data:
-                error_logger.error("Empty event data received for PR event")
+                logger.error("Empty event data received for PR event")
                 return
 
             payload = event_data.get('payload', {})
             if not payload:
-                error_logger.error("No payload found in event data")
+                logger.error("No payload found in event data")
                 return
 
             pr = payload.get('pull_request', {})
             action = payload.get('action', '')
 
             if not pr or not action:
-                error_logger.error(
+                logger.error(
                     f"Missing PR or action in payload: {payload}")
                 return
 
@@ -409,28 +390,28 @@ class GitHubZulipBot:
             )
 
         except Exception as e:
-            error_logger.error(f"Error handling PR event: {str(e)}")
-            debug_logger.debug(f"Problematic event data: {event}")
+            logger.error(f"Error handling PR event: {str(e)}")
+            logger.debug(f"Problematic event data: {event}")
 
     def handle_comment_event(self, repo_name, event):
         """Handle issue and PR comment events."""
         try:
             event_data = event
             if not event_data:
-                error_logger.error(
+                logger.error(
                     "Empty event data received for comment event")
                 return
 
             payload = event_data.get('payload', {})
             if not payload:
-                error_logger.error("No payload found in event data")
+                logger.error("No payload found in event data")
                 return
 
             comment = payload.get('comment', {})
             issue = payload.get('issue', {})
 
             if not comment or not issue:
-                error_logger.error(
+                logger.error(
                     f"Missing comment or issue in payload: {payload}")
                 return
 
@@ -465,12 +446,12 @@ class GitHubZulipBot:
             )
 
         except Exception as e:
-            error_logger.error(f"Error handling comment event: {str(e)}")
-            debug_logger.debug(f"Problematic event data: {event}")
+            logger.error(f"Error handling comment event: {str(e)}")
+            logger.debug(f"Problematic event data: {event}")
 
     def run(self, check_interval):
         """Run the bot with specified check interval (in seconds)."""
-        info_logger.info(
+        logger.info(
             f"Bot started, monitoring repositories: {', '.join(self.last_check_etag.keys())}")
 
         while True:
