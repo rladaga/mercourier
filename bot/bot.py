@@ -33,10 +33,11 @@ class ZulipHandler(logging.Handler):
 
 
 class GitHubZulipBot:
-    def __init__(self, zulip_email=None, zulip_api_key=None, zulip_site=None, stream_name=None, zulip_on=True, last_check_file="last_check.json"):
+    def __init__(self, zulip_email=None, zulip_api_key=None, zulip_site=None, stream_name=None, repositories=None, zulip_on=True, last_check_file="last_check.json"):
         """Initialize the bot with Zulip credentials."""
 
         self.stream_name = stream_name
+        self.repositories = repositories
         self.last_check_etag = {}
         self.processed_events = {}
         self.zulip_on = zulip_on
@@ -83,6 +84,12 @@ class GitHubZulipBot:
                 f"Zulip client connected to {zulip_site} as {zulip_email}")
         else:
             info_logger.info("Zulip client not connected (debug mode)")
+
+        self.load_last_check()
+
+        for repo in repositories:
+            if repo not in self.last_check_etag:
+                self.add_repository(repo)
 
     def save_last_check(self):
         """ Save last check etag for all repositories to file. """
