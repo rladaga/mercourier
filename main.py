@@ -7,7 +7,7 @@ import signal
 logger = logging.getLogger('bot')
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
@@ -17,10 +17,11 @@ def main():
     logger.info("Starting bot...")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", action='store_true', help="Enable debug mode")
+    parser.add_argument("--zulip-off", action='store_true',
+                        help="Turn off Zulip notifications")
     args = parser.parse_args()
 
-    zulip_on = not args.d
+    zulip_on = not args.zulip_off
 
     config = load_config()
 
