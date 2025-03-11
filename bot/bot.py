@@ -260,7 +260,7 @@ class GitHubZulipBot:
                 message += f"\n❌ Branch `{branch}` was deleted\n"
 
             self.send_zulip_message(
-                topic=f"{repo_name}/{branch}",
+                topic=f"{repo_name}/push/{branch}",
                 content=message
             )
 
