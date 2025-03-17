@@ -4,4 +4,4 @@
 # python
 *.py[cod]
 __pycache__/
-secrets.py
+config_secrets.py
