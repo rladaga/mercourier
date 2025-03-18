@@ -228,11 +228,9 @@ class GitHubZulipBot:
                         'message', 'No message').split('\n')[0]
                     commit_sha = commit.get(
                         'id', commit.get('sha', 'unknown'))[:7]
-                    commit_url = (commit.get('url', '') or '').replace(
-                        'api.github.com/repos', 'github.com')
+                    commit_url = f"https://github.com/{repo_name}/commit/{commit_sha}"
 
-                    if not commit_url:
-                        commit_url = f"https://github.com/{repo_name}/commit/{commit_sha}"
+                    print(commit_url)
 
                     pr_match = pr_pattern.search(commit_msg)
                     if pr_match:
