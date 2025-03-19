@@ -153,6 +153,8 @@ class GitHubZulipBot:
                 f"Last ETag for {repo_name}: {self.last_check_etag[repo_name]}")
 
             for event in reversed((events_json)):
+                if event['type'] not in self.handlers:
+                    continue
                 logger.info(
                     f"Found event: {event['type']} at {event['created_at']}")
                 event_id = event['id']
@@ -209,11 +211,7 @@ class GitHubZulipBot:
                         'message', 'No message').split('\n')[0]
                     commit_sha = commit.get(
                         'id', commit.get('sha', 'unknown'))[:7]
-                    commit_url = (commit.get('url', '') or '').replace(
-                        'api.github.com/repos', 'github.com')
-
-                    if not commit_url:
-                        commit_url = f"https://github.com/{repo_name}/commit/{commit_sha}"
+                    commit_url = f"https://github.com/{repo_name}/commit/{commit_sha}"
 
                     pr_match = pr_pattern.search(commit_msg)
                     if pr_match:

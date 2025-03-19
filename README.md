@@ -37,9 +37,7 @@ sudo pacman -S python python-pip python-virtualenv
 
 python -m venv venv
 
-source venv/bin/activate
-
-pip install -r requirements.txt
+venv/bin/pip install -r requirements.txt
 ```
 
 After this create a systemd service to keep the bot running:
@@ -92,7 +90,6 @@ The -d flag enables the debug mode so the bot doesn't send the messages to Zulip
 
 ```
 python3 -m venv venv
-. venv/bin/activate
-pip3 install -r requirements.txt
-python3 main.py -d
+venv/bin/pip3 install -r requirements.txt
+venv/bin/python3 main.py --zulip-off
 ```

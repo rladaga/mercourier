@@ -6,11 +6,8 @@ sudo pacman -S python python-pip python-virtualenv
 # Create a virtual environment
 python -m venv venv
 
-# Activate the virtual environment
-source venv/bin/activate
-
 # Install the required packages
-pip install -r requirements.txt
+venv/bin/pip install -r requirements.txt
 
 # Create systemd service file
 
