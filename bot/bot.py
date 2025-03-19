@@ -118,8 +118,13 @@ class GitHubZulipBot:
 
                 self.processed_events[repo_name] = data['processed_events']
 
-                info_logger.info(
-                    f"Added repository: {repo_name} with ETag {self.last_check_etag[repo_name]}")
+                if repo_name not in self.repositories:
+                    info_logger.info(
+                        f"Repository {repo_name} not found in your repositories to check. Removing from the list.")
+                    self.last_check_etag.pop(repo_name, None)
+                else:
+                    info_logger.info(
+                        f"Added repository: {repo_name} with ETag {self.last_check_etag[repo_name]}")
 
             info_logger.info(
                 "Last check etag and processed events loaded from file")
@@ -188,10 +193,9 @@ class GitHubZulipBot:
 
                 handler = self.handlers.get(event['type'])
                 if handler:
+                    info_logger.info(
+                        f"Checking events for {repo_name}...Found new event, updating last etag to {etag}")
                     handler(repo_name, event)
-
-            info_logger.info(
-                f"Checking events for {repo_name}...Found events, updating last etag to {etag}")
 
         except Exception as e:
             error_logger.error(
