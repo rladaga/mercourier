@@ -16,7 +16,7 @@ Stay informed about your GitHub repositories without constantly checking GitHub 
 
 To set up the bot and obtain the `ZULIP_EMAIL` and `ZULIP_API_KEY`, go to `Zulip` and click the configuration wheel next to your profile picture. Then, navigate to "Personal settings" → "Bots" → "Add a new bot". Select Generic bot as the bot type, enter a name and email of your choice, and click Add. Once created, you'll see the bot's `API KEY` and `BOT EMAIL`, which you need to add to the `config_secrets.py` file.
 
-Inside the `config_secrets.py` file, specify the repositories you want to monitor in the `repositories` list. Refer to `.config_secrets.example` for guidance on the correct format.
+Inside the `config_secrets.py` file, specify the repositories you want to monitor in the `repositories` list. Refer to `config_secrets.example.py` for guidance on the correct format.
 
 ## Installation
 
@@ -32,7 +32,6 @@ The next steps can be done automatically by running the `install.sh` script (wor
 If you're using another distribution, you may need to modify `install.sh` accordingly.
 
 Mercourier also includes an `update.sh` script that easily fetch the latest changes and restarts the service.
-
 
 ## Instructions to debug locally
 
