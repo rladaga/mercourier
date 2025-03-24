@@ -7,6 +7,7 @@ import time
 from datetime import datetime, timezone, timedelta
 import logging
 from logging import StreamHandler
+import config_secrets
 
 
 mercourier_logger = logging.getLogger("mercourier")
@@ -84,6 +85,8 @@ class GitHubZulipBot:
             )
             mercourier_logger.addHandler(zulip_handler)
 
+            zulip_handler.info("Bot initialized successfully")
+
             mercourier_logger.info(
                 f"Zulip client connected to {zulip_site} as {zulip_email}"
             )
@@ -95,6 +98,142 @@ class GitHubZulipBot:
         for repo in repositories:
             if repo not in self.last_check_etag:
                 self.add_repository(repo)
+
+    def listen_messages(self):
+
+        if not self.zulip_on:
+            mercourier_logger.info("Modo debug: el bot no está escuchando mensajes.")
+            return
+
+        mercourier_logger.info("El bot está escuchando mensajes en Zulip...")
+
+        result = self.zulip.get_stream_id(self.stream_name)
+        if result["result"] != "success":
+            mercourier_logger.error(f"Failed to get stream ID: {result['msg']}")
+            return
+
+        request = {
+            "event_types": ["message"],
+            "narrow": [["stream", self.stream_name], ["topic", "bot-commands"]],
+        }
+
+        queue_result = self.zulip.register(**request)
+        if queue_result["result"] != "success":
+            mercourier_logger.error(f"Failed to register queue: {queue_result['msg']}")
+            return
+
+        queue_id = queue_result["queue_id"]
+        last_event_id = queue_result["last_event_id"]
+
+        mercourier_logger.info(f"Successfully registered queue with ID: {queue_id}")
+
+        while True:
+            try:
+
+                event_result = self.zulip.get_events(
+                    queue_id=queue_id, last_event_id=last_event_id
+                )
+
+                if event_result["result"] != "success":
+                    mercourier_logger.error(
+                        f"Error getting events: {event_result['msg']}"
+                    )
+
+                    if (
+                        "code" in event_result
+                        and event_result["code"] == "BAD_EVENT_QUEUE_ID"
+                    ):
+                        queue_result = self.zulip.register(**request)
+                        if queue_result["result"] == "success":
+                            queue_id = queue_result["queue_id"]
+                            last_event_id = queue_result["last_event_id"]
+                            mercourier_logger.info(
+                                f"Re-registered queue with ID: {queue_id}"
+                            )
+                    time.sleep(2)
+                    continue
+
+                for event in event_result["events"]:
+                    last_event_id = max(last_event_id, event["id"])
+                    if event["type"] == "message":
+
+                        self.handle_message(event["message"])
+
+            except Exception as e:
+                mercourier_logger.error(f"Error in listen_messages: {e}")
+                time.sleep(2)
+
+    def handle_message(self, message):
+        """Handle incoming messages from the bot-commands topic."""
+        try:
+            mercourier_logger.info(f"Message received: {message.get('content', '')}")
+
+            if message.get("type") != "stream":
+                return
+
+            if message.get("display_recipient") != self.stream_name:
+                return
+
+            if message.get("subject", "").strip().lower() != "bot-commands":
+                return
+
+            content = message.get("content", "").strip()
+
+            if "@**gh-bot**" in content.lower():
+                split_content = content.lower().split("@**gh-bot**", 1)
+
+                if len(split_content) > 1:
+                    command_text = split_content[1].strip()
+                    print(f"Command text: {command_text}")
+                else:
+                    mercourier_logger.error(
+                        "Command text is missing after @gh-bot mention."
+                    )
+                    return
+
+                if command_text.startswith("track"):
+                    repo_name = command_text.replace("track", "", 1).strip()
+                    if "/" not in repo_name:
+                        response = (
+                            "Incorrect format. Use `@gh-bot track username/repo`."
+                        )
+                    else:
+
+                        if repo_name not in self.repositories:
+                            self.repositories.append(repo_name)
+                            self.add_repository(repo_name)
+                            config_secrets.CREDENTIALS["repositories"].append(repo_name)
+                            with open("config_secrets.py", "w") as f:
+                                f.write(
+                                    "CREDENTIALS = " + repr(config_secrets.CREDENTIALS)
+                                )
+                            response = f"Repository added: {repo_name}"
+                        else:
+                            response = (
+                                f"Repository {repo_name} is already being tracked."
+                            )
+
+                    self.send_message(response, message.get("subject", "bot-commands"))
+
+        except Exception as e:
+            mercourier_logger.error(f"Error handling message: {e}")
+
+    def send_message(self, content, topic="bot-commands"):
+        """Send a message to the stream."""
+        if not self.zulip_on:
+            mercourier_logger.info(f"Debug mode - would have sent: {content}")
+            return
+
+        request = {
+            "type": "stream",
+            "to": self.stream_name,
+            "subject": topic,
+            "content": content,
+        }
+
+        result = self.zulip.send_message(request)
+        if result["result"] != "success":
+            mercourier_logger.error(f"Failed to send message: {result['msg']}")
 
     def save_last_check(self):
         """Save last check etag for all repositories to file."""
@@ -484,6 +623,7 @@ class GitHubZulipBot:
         )
 
         while True:
+            self.listen_messages()
             for repo_name in self.last_check_etag.keys():
                 self.check_repository_events(repo_name)
             time.sleep(check_interval)
