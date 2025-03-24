@@ -6,9 +6,9 @@ from zulip import Client
 import time
 from datetime import datetime, timezone, timedelta
 import logging
+import config_secrets
 
-
-mercourier_logger = logging.getLogger('mercourier')
+mercourier_logger = logging.getLogger("mercourier")
 
 
 class ZulipHandler(logging.Handler):
@@ -24,13 +24,22 @@ class ZulipHandler(logging.Handler):
             "type": "stream",
             "to": self.stream_name,
             "topic": topic,
-            "content": log_entry
+            "content": log_entry,
         }
         self.zulip_client.send_message(request)
 
 
 class GitHubZulipBot:
-    def __init__(self, zulip_email=None, zulip_api_key=None, zulip_site=None, stream_name=None, repositories=None, zulip_on=True, last_check_file="last_check.json"):
+    def __init__(
+        self,
+        zulip_email=None,
+        zulip_api_key=None,
+        zulip_site=None,
+        stream_name=None,
+        repositories=None,
+        zulip_on=True,
+        last_check_file="last_check.json",
+    ):
         """Initialize the bot with Zulip credentials."""
 
         self.stream_name = stream_name
@@ -51,19 +60,24 @@ class GitHubZulipBot:
 
         if self.zulip_on:
             self.zulip = Client(
-                email=zulip_email,
-                api_key=zulip_api_key,
-                site=zulip_site
+                email=zulip_email, api_key=zulip_api_key, site=zulip_site
             )
 
             zulip_handler = ZulipHandler(self.zulip, stream_name)
             zulip_handler.setLevel(logging.DEBUG)
-            zulip_handler.setFormatter(logging.Formatter(
-                '*%(asctime)s* - **%(name)s** - `%(levelname)s`\n\n%(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
+            zulip_handler.setFormatter(
+                logging.Formatter(
+                    "*%(asctime)s* - **%(name)s** - `%(levelname)s`\n\n%(message)s",
+                    datefmt="%Y-%m-%d %H:%M:%S",
+                )
+            )
             mercourier_logger.addHandler(zulip_handler)
 
+            zulip_handler.info("Bot initialized successfully")
+
             mercourier_logger.info(
-                f"Zulip client connected to {zulip_site} as {zulip_email}")
+                f"Zulip client connected to {zulip_site} as {zulip_email}"
+            )
         else:
             mercourier_logger.info("Zulip client not connected (debug mode)")
 
@@ -73,53 +87,193 @@ class GitHubZulipBot:
             if repo not in self.last_check_etag:
                 self.add_repository(repo)
 
+    def listen_messages(self):
+
+        if not self.zulip_on:
+            mercourier_logger.info("Modo debug: el bot no está escuchando mensajes.")
+            return
+
+        mercourier_logger.info("El bot está escuchando mensajes en Zulip...")
+
+        result = self.zulip.get_stream_id(self.stream_name)
+        if result["result"] != "success":
+            mercourier_logger.error(f"Failed to get stream ID: {result['msg']}")
+            return
+
+        request = {
+            "event_types": ["message"],
+            "narrow": [["stream", self.stream_name], ["topic", "bot-commands"]],
+        }
+
+        queue_result = self.zulip.register(**request)
+        if queue_result["result"] != "success":
+            mercourier_logger.error(f"Failed to register queue: {queue_result['msg']}")
+            return
+
+        queue_id = queue_result["queue_id"]
+        last_event_id = queue_result["last_event_id"]
+
+        mercourier_logger.info(f"Successfully registered queue with ID: {queue_id}")
+
+        while True:
+            try:
+
+                event_result = self.zulip.get_events(
+                    queue_id=queue_id, last_event_id=last_event_id
+                )
+
+                if event_result["result"] != "success":
+                    mercourier_logger.error(
+                        f"Error getting events: {event_result['msg']}"
+                    )
+
+                    if (
+                        "code" in event_result
+                        and event_result["code"] == "BAD_EVENT_QUEUE_ID"
+                    ):
+                        queue_result = self.zulip.register(**request)
+                        if queue_result["result"] == "success":
+                            queue_id = queue_result["queue_id"]
+                            last_event_id = queue_result["last_event_id"]
+                            mercourier_logger.info(
+                                f"Re-registered queue with ID: {queue_id}"
+                            )
+                    time.sleep(2)
+                    continue
+
+                for event in event_result["events"]:
+                    last_event_id = max(last_event_id, event["id"])
+                    if event["type"] == "message":
+
+                        self.handle_message(event["message"])
+
+            except Exception as e:
+                mercourier_logger.error(f"Error in listen_messages: {e}")
+                time.sleep(2)
+
+    def handle_message(self, message):
+        """Handle incoming messages from the bot-commands topic."""
+        try:
+            mercourier_logger.info(f"Message received: {message.get('content', '')}")
+
+            if message.get("type") != "stream":
+                return
+
+            if message.get("display_recipient") != self.stream_name:
+                return
+
+            if message.get("subject", "").strip().lower() != "bot-commands":
+                return
+
+            content = message.get("content", "").strip()
+
+            if "@**gh-bot**" in content.lower():
+                split_content = content.lower().split("@**gh-bot**", 1)
+
+                if len(split_content) > 1:
+                    command_text = split_content[1].strip()
+                    print(f"Command text: {command_text}")
+                else:
+                    mercourier_logger.error(
+                        "Command text is missing after @gh-bot mention."
+                    )
+                    return
+
+                if command_text.startswith("track"):
+                    repo_name = command_text.replace("track", "", 1).strip()
+                    if "/" not in repo_name:
+                        response = (
+                            "Incorrect format. Use `@gh-bot track username/repo`."
+                        )
+                    else:
+
+                        if repo_name not in self.repositories:
+                            self.repositories.append(repo_name)
+                            self.add_repository(repo_name)
+                            config_secrets.CREDENTIALS["repositories"].append(repo_name)
+                            with open("config_secrets.py", "w") as f:
+                                f.write(
+                                    "CREDENTIALS = " + repr(config_secrets.CREDENTIALS)
+                                )
+                            response = f"Repository added: {repo_name}"
+                        else:
+                            response = (
+                                f"Repository {repo_name} is already being tracked."
+                            )
+
+                    self.send_message(response, message.get("subject", "bot-commands"))
+
+        except Exception as e:
+            mercourier_logger.error(f"Error handling message: {e}")
+
+    def send_message(self, content, topic="bot-commands"):
+        """Send a message to the stream."""
+        if not self.zulip_on:
+            mercourier_logger.info(f"Debug mode - would have sent: {content}")
+            return
+
+        request = {
+            "type": "stream",
+            "to": self.stream_name,
+            "subject": topic,
+            "content": content,
+        }
+
+        result = self.zulip.send_message(request)
+        if result["result"] != "success":
+            mercourier_logger.error(f"Failed to send message: {result['msg']}")
+
     def save_last_check(self):
-        """ Save last check etag for all repositories to file. """
+        """Save last check etag for all repositories to file."""
         state_data = {}
         for repo_name, last_etag in self.last_check_etag.items():
             state_data[repo_name] = {
-                'last_etag': last_etag,
-                'processed_events': self.processed_events[repo_name]
+                "last_etag": last_etag,
+                "processed_events": self.processed_events[repo_name],
             }
 
-        with open(self.last_check_file, 'w') as file:
+        with open(self.last_check_file, "w") as file:
             json.dump(state_data, file)
-        mercourier_logger.info(
-            "Last check etag and processed events saved to file")
+        mercourier_logger.info("Last check etag and processed events saved to file")
 
     def load_last_check(self):
-        """ Load last check etag and processed events from file. """
+        """Load last check etag and processed events from file."""
 
         if os.path.exists(self.last_check_file):
-            with open(self.last_check_file, 'r') as file:
+            with open(self.last_check_file, "r") as file:
                 state_data = json.load(file)
 
             for repo_name, data in state_data.items():
 
-                self.last_check_etag[repo_name] = data['last_etag']
+                self.last_check_etag[repo_name] = data["last_etag"]
 
-                self.processed_events[repo_name] = data['processed_events']
+                self.processed_events[repo_name] = data["processed_events"]
 
                 if repo_name not in self.repositories:
                     mercourier_logger.info(
-                        f"Repository {repo_name} not found in your repositories to check. Removing from the list.")
+                        f"Repository {repo_name} not found in your repositories to check. Removing from the list."
+                    )
                     self.last_check_etag.pop(repo_name, None)
                 else:
                     mercourier_logger.info(
-                        f"Added repository: {repo_name} with ETag {self.last_check_etag[repo_name]}")
+                        f"Added repository: {repo_name} with ETag {self.last_check_etag[repo_name]}"
+                    )
 
             mercourier_logger.info(
-                "Last check etag and processed events loaded from file")
+                "Last check etag and processed events loaded from file"
+            )
         else:
             mercourier_logger.info(
-                "Last check file not found. State will be initialized when repositories are added.")
+                "Last check file not found. State will be initialized when repositories are added."
+            )
 
     def add_repository(self, repo_name):
         """Add a repository to monitor."""
         self.last_check_etag[repo_name] = ""
         self.processed_events[repo_name] = None
         mercourier_logger.info(
-            f"Added repository: {repo_name} with last ETag: {self.last_check_etag[repo_name]}")
+            f"Added repository: {repo_name} with last ETag: {self.last_check_etag[repo_name]}"
+        )
 
     def send_zulip_message(self, topic, content):
         """Send a message to Zulip stream."""
@@ -127,97 +281,105 @@ class GitHubZulipBot:
             "type": "stream",
             "to": self.stream_name,
             "topic": topic,
-            "content": content
+            "content": content,
         }
 
         if self.zulip_on:
             response = self.zulip.send_message(request)
-            if response['result'] != 'success':
+            if response["result"] != "success":
                 mercourier_logger.error(f"Failed to send message: {response}")
         else:
-            mercourier_logger.info(
-                f"Debug mode: Message not sent to Zulip: {request}")
+            mercourier_logger.info(f"Debug mode: Message not sent to Zulip: {request}")
 
     def check_repository_events(self, repo_name):
         """Checks new events in every repo."""
 
         try:
-            events = get(f"https://api.github.com/repos/{repo_name}/events",
-                         headers={'If-None-Match': self.last_check_etag[repo_name]})
+            events = get(
+                f"https://api.github.com/repos/{repo_name}/events",
+                headers={"If-None-Match": self.last_check_etag[repo_name]},
+            )
 
             if events.status_code == 304:
                 mercourier_logger.info(
-                    f"Checking events for {repo_name}...No new events.")
+                    f"Checking events for {repo_name}...No new events."
+                )
                 return
 
             events_json = json.loads(events.content)
-            etag = events.headers['ETag']
+            etag = events.headers["ETag"]
 
             self.last_check_etag[repo_name] = etag
 
             mercourier_logger.info(
-                f"Last ETag for {repo_name}: {self.last_check_etag[repo_name]}")
+                f"Last ETag for {repo_name}: {self.last_check_etag[repo_name]}"
+            )
 
             for event in reversed((events_json)):
-                if event['type'] not in self.handlers:
+                if event["type"] not in self.handlers:
                     continue
                 mercourier_logger.info(
-                    f"Found event: {event['type']} at {event['created_at']}")
-                event_id = event['id']
+                    f"Found event: {event['type']} at {event['created_at']}"
+                )
+                event_id = event["id"]
 
-                if self.processed_events[repo_name] and event_id <= self.processed_events[repo_name]:
+                if (
+                    self.processed_events[repo_name]
+                    and event_id <= self.processed_events[repo_name]
+                ):
                     mercourier_logger.info(
-                        f"Skipping already processed event: {event['type']} at {event['created_at']}")
+                        f"Skipping already processed event: {event['type']} at {event['created_at']}"
+                    )
                     continue
 
                 self.processed_events[repo_name] = event_id
                 mercourier_logger.info(
-                    f"Processing event: {event['type']} ({event_id})")
+                    f"Processing event: {event['type']} ({event_id})"
+                )
 
-                handler = self.handlers.get(event['type'])
+                handler = self.handlers.get(event["type"])
                 if handler:
                     mercourier_logger.info(
-                        f"Checking events for {repo_name}...Found new event, updating last etag to {etag}")
+                        f"Checking events for {repo_name}...Found new event, updating last etag to {etag}"
+                    )
                     handler(repo_name, event)
 
         except Exception as e:
             mercourier_logger.error(
-                f"Unexpected error while checking {repo_name}: {str(e)}")
+                f"Unexpected error while checking {repo_name}: {str(e)}"
+            )
 
     def handle_push_event(self, repo_name, event):
         """Handle push events."""
         try:
             event_data = event
             if not event_data:
-                mercourier_logger.error(
-                    "Empty event data received for push event")
+                mercourier_logger.error("Empty event data received for push event")
                 return
 
-            payload = event_data.get('payload', {})
+            payload = event_data.get("payload", {})
             if not payload:
                 mercourier_logger.error("No payload found in event data")
                 return
 
-            commits = payload.get('commits', [])
-            ref = payload.get('ref', '')
+            commits = payload.get("commits", [])
+            ref = payload.get("ref", "")
 
             if not ref:
                 mercourier_logger.error(f"Missing ref in payload: {payload}")
                 return
 
-            branch = ref.split('/')[-1]
+            branch = ref.split("/")[-1]
 
             message = f"🔨 {len(commits)} by [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')})\n\n"
 
-            pr_pattern = re.compile(r'\(#(\d+)\)')
+            pr_pattern = re.compile(r"\(#(\d+)\)")
 
             if commits:
                 for commit in commits:
 
-                    commit_msg = commit.get(
-                        'message', 'No message').split('\n')[0]
-                    commit_sha = commit.get(
-                        'id', commit.get('sha', 'unknown'))[:7]
+                    commit_msg = commit.get("message", "No message").split("\n")[0]
+                    commit_sha = commit.get("id", commit.get("sha", "unknown"))[:7]
                     commit_url = f"https://github.com/{repo_name}/commit/{commit_sha}"
 
                     pr_match = pr_pattern.search(commit_msg)
@@ -225,10 +387,12 @@ class GitHubZulipBot:
                         pr_number = pr_match.group(1)
                         pr_url = f"https://github.com/{repo_name}/pull/{pr_number}"
                         commit_msg = pr_pattern.sub(
-                            f'([#{pr_number}]({pr_url}))', commit_msg)
+                            f"([#{pr_number}]({pr_url}))", commit_msg
+                        )
 
                     commit_time = datetime.strptime(
-                        event_data.get('created_at'), "%Y-%m-%dT%H:%M:%SZ")
+                        event_data.get("created_at"), "%Y-%m-%dT%H:%M:%SZ"
+                    )
                     commit_time_str = commit_time.strftime("%Y-%m-%d %H:%M:%S")
 
                     message += f"- {commit_msg} ([`{commit_sha}`]({commit_url})) at {commit_time_str}\n"
@@ -236,19 +400,16 @@ class GitHubZulipBot:
             else:
                 message += "\nNo commits found in push event."
 
-            if payload.get('forced'):
+            if payload.get("forced"):
                 message += "\n⚠️ This was a force push!\n"
 
-            if payload.get('created'):
+            if payload.get("created"):
                 message += f"\n🆕 Branch `{branch}` was created\n"
 
-            if payload.get('deleted'):
+            if payload.get("deleted"):
                 message += f"\n❌ Branch `{branch}` was deleted\n"
 
-            self.send_zulip_message(
-                topic=f"{repo_name}/push/{branch}",
-                content=message
-            )
+            self.send_zulip_message(topic=f"{repo_name}/push/{branch}", content=message)
 
         except Exception as e:
             mercourier_logger.error(f"Error handling push event: {str(e)}")
@@ -259,67 +420,62 @@ class GitHubZulipBot:
         try:
             event_data = event
             if not event_data:
-                mercourier_logger.error(
-                    "Empty event data received for issue event")
+                mercourier_logger.error("Empty event data received for issue event")
                 return
 
-            payload = event_data.get('payload', {})
+            payload = event_data.get("payload", {})
             if not payload:
                 mercourier_logger.error("No payload found in event data")
                 return
 
-            issue = payload.get('issue', {})
-            action = payload.get('action', '')
+            issue = payload.get("issue", {})
+            action = payload.get("action", "")
 
-            url = issue.get('html_url')
-            number = issue.get('number')
+            url = issue.get("html_url")
+            number = issue.get("number")
             if not url:
                 url = f"https://github.com/{repo_name}/issues/{number}"
 
-            created_at = issue.get('created_at')
+            created_at = issue.get("created_at")
             if created_at:
-                created_at = datetime.strptime(
-                    created_at, "%Y-%m-%dT%H:%M:%SZ")
+                created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
                 created_at_str = created_at.strftime("%Y-%m-%d %H:%M:%S")
             else:
                 created_at_str = "Unknown"
 
             message = f"📝 Issue [#{number}]({url}) {action}\n\n"
 
-            message += "| **Title** | " + \
-                issue.get('title', 'No title') + " |\n"
+            message += "| **Title** | " + issue.get("title", "No title") + " |\n"
             message += "|-------|-------|\n"
             message += f"| Author | [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')}) |\n"
             message += f"| Date | {created_at_str} |\n"
 
-            if issue.get('labels'):
-                labels = [label.get('name', '') for label in issue['labels']]
+            if issue.get("labels"):
+                labels = [label.get("name", "") for label in issue["labels"]]
                 if labels:
                     message += f"| Labels | {', '.join(labels)} |\n"
 
-            if action == 'opened' and issue.get('body'):
-                body = issue.get('body', '').strip()
+            if action == "opened" and issue.get("body"):
+                body = issue.get("body", "").strip()
 
                 message += f"{body}\n"
 
-            if issue.get('comments'):
+            if issue.get("comments"):
                 message += f"| Comments | {issue['comments']} |\n"
 
-            if action == 'closed':
-                closed_at = issue.get('closed_at')
+            if action == "closed":
+                closed_at = issue.get("closed_at")
                 if closed_at:
-                    closed_at = datetime.strptime(
-                        closed_at, "%Y-%m-%dT%H:%M:%SZ")
+                    closed_at = datetime.strptime(closed_at, "%Y-%m-%dT%H:%M:%SZ")
                     closed_at_str = closed_at.strftime("%Y-%m-%d %H:%M:%S")
                     message += f"| Closed at | {closed_at_str} |\n"
 
-                state_reason = issue.get('state_reason')
+                state_reason = issue.get("state_reason")
                 if state_reason:
                     message += f"| Reason | {state_reason} |\n"
 
             self.send_zulip_message(
-                topic=f"{repo_name}/issues/{number}",
-                content=message
+                topic=f"{repo_name}/issues/{number}", content=message
             )
 
         except Exception as e:
@@ -331,70 +487,65 @@ class GitHubZulipBot:
         try:
             event_data = event
             if not event_data:
-                mercourier_logger.error(
-                    "Empty event data received for PR event")
+                mercourier_logger.error("Empty event data received for PR event")
                 return
 
-            payload = event_data.get('payload', {})
+            payload = event_data.get("payload", {})
             if not payload:
                 mercourier_logger.error("No payload found in event data")
                 return
 
-            pr = payload.get('pull_request', {})
-            action = payload.get('action', '')
+            pr = payload.get("pull_request", {})
+            action = payload.get("action", "")
 
             if not pr or not action:
-                mercourier_logger.error(
-                    f"Missing PR or action in payload: {payload}")
+                mercourier_logger.error(f"Missing PR or action in payload: {payload}")
                 return
 
-            url = pr.get('html_url')
-            number = pr.get('number')
+            url = pr.get("html_url")
+            number = pr.get("number")
             if not url:
                 url = f"https://github.com/{repo_name}/pull/{number}"
 
-            created_at = pr.get('created_at')
+            created_at = pr.get("created_at")
             if created_at:
-                created_at = datetime.strptime(
-                    created_at, "%Y-%m-%dT%H:%M:%SZ")
+                created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
                 created_at_str = created_at.strftime("%Y-%m-%d %H:%M:%S")
             else:
                 created_at_str = "Unknown"
 
-            updated_at = pr.get('updated_at')
+            updated_at = pr.get("updated_at")
             if updated_at:
-                updated_at = datetime.strptime(
-                    updated_at, "%Y-%m-%dT%H:%M:%SZ")
+                updated_at = datetime.strptime(updated_at, "%Y-%m-%dT%H:%M:%SZ")
                 updated_at_str = updated_at.strftime("%Y-%m-%d %H:%M:%S")
             else:
                 updated_at_str = "Unknown"
 
             message = f"🔀 Pull request [#{number}]({url}) {action}\n\n"
 
-            message += "| **Title** | " + pr.get('title', 'No title') + " |\n"
+            message += "| **Title** | " + pr.get("title", "No title") + " |\n"
             message += "|-------|-------|\n"
             message += f"| Author | [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')}) |\n"
             message += f"| Created at | {created_at_str} |\n"
-            message += f"| Changes | +{pr.get('additions', 0)} -{pr.get('deletions', 0)} |\n"
+            message += (
+                f"| Changes | +{pr.get('additions', 0)} -{pr.get('deletions', 0)} |\n"
+            )
             message += f"| Files changed | {pr.get('changed_files', 0)} |\n"
             message += f"| Last updated | {updated_at_str} |\n"
 
-            if action == 'opened' and pr.get('body'):
-                body = pr.get('body', '').strip()
+            if action == "opened" and pr.get("body"):
+                body = pr.get("body", "").strip()
                 if body:
                     body = body.replace("|", "\\|")
                     message += "\n**Description:**\n"
                     message += body
 
-            if pr.get('labels'):
-                labels = [label.get('name', '') for label in pr['labels']]
+            if pr.get("labels"):
+                labels = [label.get("name", "") for label in pr["labels"]]
                 if labels:
                     message += f"| Labels | {', '.join(labels)} |\n"
 
-            self.send_zulip_message(
-                topic=f"{repo_name}/pr/{number}",
-                content=message
-            )
+            self.send_zulip_message(topic=f"{repo_name}/pr/{number}", content=message)
 
         except Exception as e:
             mercourier_logger.error(f"Error handling PR event: {str(e)}")
@@ -405,33 +556,33 @@ class GitHubZulipBot:
         try:
             event_data = event
             if not event_data:
-                mercourier_logger.error(
-                    "Empty event data received for comment event")
+                mercourier_logger.error("Empty event data received for comment event")
                 return
 
-            payload = event_data.get('payload', {})
+            payload = event_data.get("payload", {})
             if not payload:
                 mercourier_logger.error("No payload found in event data")
                 return
 
-            comment = payload.get('comment', {})
-            issue = payload.get('issue', {})
+            comment = payload.get("comment", {})
+            issue = payload.get("issue", {})
 
             if not comment or not issue:
                 mercourier_logger.error(
-                    f"Missing comment or issue in payload: {payload}")
+                    f"Missing comment or issue in payload: {payload}"
+                )
                 return
 
-            url = comment.get('html_url')
-            number = issue.get('number')
+            url = comment.get("html_url")
+            number = issue.get("number")
             if not url:
                 url = issue.get(
-                    'html_url', f"https://github.com/{repo_name}/issues/{number}")
+                    "html_url", f"https://github.com/{repo_name}/issues/{number}"
+                )
 
-            created_at = comment.get('created_at')
+            created_at = comment.get("created_at")
             if created_at:
-                created_at = datetime.strptime(
-                    created_at, "%Y-%m-%dT%H:%M:%SZ")
+                created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
                 created_at_str = created_at.strftime("%Y-%m-%d %H:%M:%S")
             else:
                 created_at_str = "Unknown"
@@ -439,18 +590,15 @@ class GitHubZulipBot:
             message = f"💬 New comment on [#{number}]({url}) by [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')}) at {created_at_str}\n\n"
             message += f"# **Title**: {issue.get('title', 'Unknown title')}\n"
 
-            body = comment.get('body', '').strip()
+            body = comment.get("body", "").strip()
             message += f"## **Comment**:\n {body}\n"
 
-            if 'pull_request' in issue:
+            if "pull_request" in issue:
                 topic = f"{repo_name}/pr/{number}"
             else:
                 topic = f"{repo_name}/issues/{number}"
 
-            self.send_zulip_message(
-                topic=topic,
-                content=message
-            )
+            self.send_zulip_message(topic=topic, content=message)
 
         except Exception as e:
             mercourier_logger.error(f"Error handling comment event: {str(e)}")
@@ -459,9 +607,11 @@ class GitHubZulipBot:
     def run(self, check_interval):
         """Run the bot with specified check interval (in seconds)."""
         mercourier_logger.info(
-            f"Bot started, monitoring repositories: {', '.join(self.last_check_etag.keys())}")
+            f"Bot started, monitoring repositories: {', '.join(self.last_check_etag.keys())}"
+        )
 
         while True:
+            self.listen_messages()
             for repo_name in self.last_check_etag.keys():
                 self.check_repository_events(repo_name)
             time.sleep(check_interval)
