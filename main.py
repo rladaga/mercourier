@@ -37,7 +37,7 @@ def main():
     signal.signal(signal.SIGTERM, handle_signal)
     signal.signal(signal.SIGINT, handle_signal)
 
-    bot.run(check_interval=10800)
+    bot.run(check_interval=config.get("check_interval"))
 
 
 if __name__ == "__main__":
