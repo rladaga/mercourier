@@ -99,7 +99,7 @@ class GitHubZulipBot:
             if repo not in self.last_check_etag:
                 self.add_repository(repo)
 
-    def listen_messages(self):
+    def listen_messages(self, timeout):
 
         if not self.zulip_on:
             mercourier_logger.info("Modo debug: el bot no está escuchando mensajes.")
@@ -127,7 +127,10 @@ class GitHubZulipBot:
 
         mercourier_logger.info(f"Successfully registered queue with ID: {queue_id}")
 
-        while True:
+        start_time = time.time()
+
+        while time.time() - start_time < timeout:
+
             try:
 
                 event_result = self.zulip.get_events(
@@ -623,7 +626,7 @@ class GitHubZulipBot:
         )
 
         while True:
-            self.listen_messages()
+            self.listen_messages(timeout=60)
             for repo_name in self.last_check_etag.keys():
                 self.check_repository_events(repo_name)
             time.sleep(check_interval)
