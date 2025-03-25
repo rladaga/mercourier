@@ -330,6 +330,8 @@ class GitHubZulipBot:
 
             if action == "opened" and issue.get("body"):
                 body = issue.get("body", "").strip()
+                if body:
+                    body = self.rewrite_github_issue_urls(body)
 
                 message += f"{body}\n"
 
@@ -409,6 +411,8 @@ class GitHubZulipBot:
             if action == "opened" and pr.get("body"):
                 body = pr.get("body", "").strip()
                 if body:
+                    body = self.rewrite_github_issue_urls(body)
+                    body = self.rewrite_issue_numbers(body, repo_name)
                     body = body.replace("|", "\\|")
                     message += "\n**Description:**\n"
                     message += body
@@ -464,6 +468,8 @@ class GitHubZulipBot:
             message += f"# **Title**: {issue.get('title', 'Unknown title')}\n"
 
             body = comment.get("body", "").strip()
+            if body:
+                body = self.rewrite_github_issue_urls(body)
             message += f"## **Comment**:\n {body}\n"
 
             if "pull_request" in issue:
@@ -476,6 +482,50 @@ class GitHubZulipBot:
         except Exception as e:
             mercourier_logger.error(f"Error handling comment event: {str(e)}")
             mercourier_logger.debug(f"Problematic event data: {event}")
+
+    def rewrite_issue_numbers(self, body, repo_name):
+        """Rewrite issue numbers (e.g., #7784) as markdown links."""
+
+        issue_number_pattern = re.compile(r"#(\d+)\b")
+        matches = issue_number_pattern.findall(body)
+
+        for issue_number in matches:
+            issue_url = f"https://github.com/{repo_name}/issues/{issue_number}"
+            markdown_link = f"[#{issue_number}]({issue_url})"
+            body = re.sub(rf"#{issue_number}\b", markdown_link, body)
+
+        return body
+
+    def rewrite_github_issue_urls(self, body):
+        """Rewrite GitHub issue URLs in the comment body as [title](url)."""
+        issue_url_pattern = re.compile(
+            r"https://github\.com/([^/]+)/([^/]+)/issues/(\d+)"
+        )
+        matches = issue_url_pattern.findall(body)
+
+        for match in matches:
+            owner, repo, issue_number = match
+            issue_url = f"https://github.com/{owner}/{repo}/issues/{issue_number}"
+
+            try:
+                # Fetch issue details from GitHub API
+                response = get(
+                    f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}",
+                    headers={"Accept": "application/vnd.github.v3+json"},
+                )
+                if response.status_code == 200:
+                    issue_data = response.json()
+                    issue_title = issue_data.get("title", "Unknown Issue")
+                    markdown_link = f"[{issue_title}]({issue_url})"
+                    body = body.replace(issue_url, markdown_link)
+                else:
+                    mercourier_logger.error(
+                        f"Failed to fetch issue details for {issue_url}: {response.status_code}"
+                    )
+            except Exception as e:
+                mercourier_logger.error(f"Error fetching issue details: {str(e)}")
+
+        return body
 
     def run(self, check_interval):
         """Run the bot with specified check interval (in seconds)."""
