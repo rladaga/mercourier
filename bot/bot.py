@@ -85,7 +85,7 @@ class GitHubZulipBot:
             )
             mercourier_logger.addHandler(zulip_handler)
 
-            zulip_handler.info("Bot initialized successfully")
+            mercourier_logger.info("Bot initialized successfully")
 
             mercourier_logger.info(
                 f"Zulip client connected to {zulip_site} as {zulip_email}"
