@@ -1,7 +1,8 @@
-.env
-.json
+*.json
+mercourier.service
 
 # python
 *.py[cod]
 __pycache__/
 config_secrets.py
+venv

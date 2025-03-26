@@ -4,7 +4,7 @@ import os
 from requests import get
 from zulip import Client
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 import logging
 from logging import StreamHandler
 
@@ -106,7 +106,7 @@ class GitHubZulipBot:
             }
 
         with open(self.last_check_file, "w") as file:
-            json.dump(state_data, file)
+            json.dump(state_data, file, indent=4)
         mercourier_logger.info("Last check etag and processed events saved to file")
 
     def load_last_check(self):

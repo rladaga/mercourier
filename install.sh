@@ -13,7 +13,8 @@ venv/bin/pip install -r requirements.txt
 CURRENT_DIR=$(pwd)
 SERVICE_FILE="$CURRENT_DIR/mercourier.service"
 
-SERVICE_CONTENT="[Unit]
+cat > $SERVICE_FILE <<FIN
+[Unit]
 Description=GitHub to Zulip Notification Bot
 After=network.target
 
@@ -26,9 +27,7 @@ Restart=always
 
 [Install]
 WantedBy=default.target"
-
-# Write the service file
-echo "$SERVICE_CONTENT" > "$SERVICE_FILE"
+FIN
 
 # Enable, Reload and Start the mercourier.service
 systemctl --user enable "$SERVICE_FILE"
