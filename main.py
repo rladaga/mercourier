@@ -5,8 +5,8 @@ from mercourier import GitHub, load_config
 from mercourier import ZulipBot
 
 
-logging.getLogger("bot").setLevel(logging.DEBUG)
-logging.getLogger("zulipbot").setLevel(logging.DEBUG)
+logging.getLogger("mercourier.github").setLevel(logging.DEBUG)
+logging.getLogger("mercourier.zulipbot").setLevel(logging.DEBUG)
 
 
 def main():
@@ -19,6 +19,7 @@ def main():
         logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     )
     logger.addHandler(console_handler)
+    logging.getLogger('mercourier.github').addHandler(console_handler)
     logger.info("Starting bot...")
 
     parser = argparse.ArgumentParser()
@@ -43,10 +44,11 @@ def main():
             zulip_site=config.get("zulip_site"),
             stream_name=config.get("zulip_stream"),
         )
+        # github.on_event = lambda e: print(e)
         github.on_event = zulip.on_event
         zulip.log_handler.setLevel(logging.INFO)
         logger.addHandler(zulip.log_handler)
-        logging.getLogger('zulipbot').addHandler(console_handler)
+        logging.getLogger('mercourier.zulipbot').addHandler(console_handler)
 
     def handle_signal(signum, frame):
         logger.debug(
