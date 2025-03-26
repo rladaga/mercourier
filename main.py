@@ -1,8 +1,8 @@
 import argparse
 import signal
 import logging
-from bot import GitHub, load_config
-from bot import ZulipBot
+from mercourier import GitHub, load_config
+from mercourier import ZulipBot
 
 
 logging.getLogger("bot").setLevel(logging.DEBUG)
