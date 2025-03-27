@@ -1,7 +1,7 @@
-.env
-.json
+*.json
 
 # python
 *.py[cod]
 __pycache__/
 config_secrets.py
+venv

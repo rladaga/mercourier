@@ -112,9 +112,11 @@ class GitHubZulipBot:
             mercourier_logger.error(f"Failed to get stream ID: {result['msg']}")
             return
 
+        stream_id = result["stream_id"]
+
         request = {
             "event_types": ["message"],
-            "narrow": [["stream", self.stream_name], ["topic", "bot-commands"]],
+            "narrow": [["stream", stream_id], ["topic", "bot-commands"]],
         }
 
         queue_result = self.zulip.register(**request)
@@ -221,7 +223,7 @@ class GitHubZulipBot:
         except Exception as e:
             mercourier_logger.error(f"Error handling message: {e}")
 
-    def send_message(self, content, topic="bot-commands"):
+    def send_message(self, content, topic):
         """Send a message to the stream."""
         if not self.zulip_on:
             mercourier_logger.info(f"Debug mode - would have sent: {content}")
