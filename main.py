@@ -49,6 +49,7 @@ def main():
         zulip.log_handler.setLevel(logging.INFO)
         logger.addHandler(zulip.log_handler)
         logging.getLogger('mercourier.zulipbot').addHandler(console_handler)
+        logging.getLogger('mercourier.github').addHandler(zulip.log_handler)
 
     def handle_signal(signum, frame):
         logger.debug(
