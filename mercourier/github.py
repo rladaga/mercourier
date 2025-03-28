@@ -103,6 +103,17 @@ class GitHub:
                 headers={"If-None-Match": self.last_check_etag[repo_name]},
             )
 
+            rate_limit = events.headers.get("X-RateLimit-Remaining", "unknown")
+            rate_limit_reset = events.headers.get("X-RateLimit-Reset", "unknown")
+            rate_limit_reset_time = datetime.fromtimestamp(int(rate_limit_reset))
+            logger.debug(f"Rate limit remaining: {rate_limit}")
+
+
+            if rate_limit == "0":
+                logger.warning(f"Rate limit exceeded")
+                logger.debug(f"Rate limit reset: {rate_limit_reset_time}")
+                return
+
             if events.status_code == 304:
                 logger.debug(
                     f"Checking events for {repo_name}...No new events."
