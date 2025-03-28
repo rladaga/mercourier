@@ -61,7 +61,7 @@ class ZulipBot:
         if tipo == "PushEvent":
             self.send_zulip_message(topic=f"{repo_name}/push/{branch}", content=message)
         elif tipo == "IssuesEvent":
-            number = event['']
+            number = event['payload']['issue']['number']
             self.send_zulip_message(
                 topic=f"{repo_name}/issues/{number}",
                 content=message
