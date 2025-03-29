@@ -275,7 +275,7 @@ class GitHub:
                 if body:
                     body = self.rewrite_github_issue_urls(body)
 
-                message += f"{body}\n"
+                message += f"\n{body}\n"
 
             if issue.get("comments"):
                 message += f"| Comments | {issue['comments']} |\n"
