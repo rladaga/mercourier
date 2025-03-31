@@ -9,7 +9,7 @@ BRANCH_NAME=$1
 
 # Stop the service
 
-systemctl stop mercourier-${BRANCH_NAME}
+systemctl --user stop mercourier-${BRANCH_NAME}
 
 # Pull the latest changes from the repository
 
@@ -17,4 +17,4 @@ git pull origin ${BRANCH_NAME}
 
 # Start the service
 
-systemctl start mercourier-${BRANCH_NAME}
+systemctl --user start mercourier-${BRANCH_NAME}
