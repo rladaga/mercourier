@@ -1,13 +1,20 @@
 #!/bin/bash
 
+if [ -z "$1" ]; then
+    echo "Usage: $0 <branch-name>"
+    exit 1
+fi
+
+BRANCH_NAME=$1
+
 # Stop the service
 
-sudo systemctl stop mercourier
+systemctl stop mercourier-${BRANCH_NAME}
 
 # Pull the latest changes from the repository
 
-git pull origin main
+git pull origin ${BRANCH_NAME}
 
 # Start the service
 
-sudo systemctl start mercourier
+systemctl start mercourier-${BRANCH_NAME}
