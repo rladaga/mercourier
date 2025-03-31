@@ -469,6 +469,7 @@ class GitHub:
         logger.info(
             f"Bot started, monitoring repositories: {', '.join(self.last_check_etag.keys())}"
         )
+        logger.info("Testing worktrees")
 
         while True:
             for repo_name in self.last_check_etag.keys():
