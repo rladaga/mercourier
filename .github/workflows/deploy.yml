@@ -1,16 +1,17 @@
 name: SSH into VM and update
-
 on:
   push:
     branches:
       - deploy_gradia
       - deploy_ekto
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
+      - name: Extract branch name
+        shell: bash
+        run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+
       - name: SSH into VM and Update
         uses: appleboy/ssh-action@v0.1.10
         with:
@@ -19,7 +20,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            BRANCH_NAME=${GITHUB_REF} | cut -d '/' -f3
-            cd ~/${BRANCH_NAME}
-            ./update.sh ${BRANCH_NAME}
-            echo "Deploy_ekto update script successful!"
+            cd ~/${{ env.BRANCH_NAME }}
+            ./update.sh ${{ env.BRANCH_NAME }}
+            echo "${{ env.BRANCH_NAME }} update script successful!"
