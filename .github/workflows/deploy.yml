@@ -1,0 +1,25 @@
+name: SSH into VM and update
+
+on:
+  push:
+    branches:
+      - deploy_gradia
+      - deploy_ekto
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: SSH into VM and Update
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            BRANCH_NAME=${GITHUB_REF} | cut -d '/' -f3
+            cd ~/${BRANCH_NAME}
+            ./update.sh ${BRANCH_NAME}
+            echo "Deploy_ekto update script successful!"
