@@ -19,7 +19,8 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            BRANCH_NAME=${GITHUB_REF} | cut -d '/' -f3
+            BRANCH_NAME=${GITHUB_REF_NAME} | cut -d '/' -f3
+            echo ${BRANCH_NAME}
             cd ~/${BRANCH_NAME}
             ./update.sh ${BRANCH_NAME}
             echo "Deploy_ekto update script successful!"
