@@ -18,22 +18,25 @@ To set up the bot and obtain the `ZULIP_EMAIL` and `ZULIP_API_KEY`, go to `Zulip
 
 Inside the `config_secrets.py` file, specify the repositories you want to monitor in the `repositories` list. Refer to `config_secrets.example.py` for guidance on the correct format.
 
-## Installation
+## Deployment
 
 We chose to clone the repo in bare mode in the server and to use a worktree strategy,
 creating different branches for each deployment we do.
 
+Only the first time:
 ```bash
-git clone --bare git@github.com:rladaga/mercourier.git
-cd mercourier
+git clone --bare https://github.com/rladaga/mercourier.git
+sudo pacman -S --noconfirm python python-pip python-virtualenv # This is for Arch-Linux, modify for your distribution
+```
+
+Then for each deployment:
+```bash
+cd mercourier.git
 git worktree add ../${BRANCH_NAME} # The branch you will use for deployment
 cd ../${BRANCH_NAME}
 # Populate config_secrets.py
 ./install.sh
 ```
-`install.sh` is meant to be run manually once.
-Code above works on Arch Linux.
-If you're using another distribution, you may need to modify `install.sh` accordingly.
 
 Mercourier also includes an `update.sh` script that easily fetch the latest changes and restarts the service.
 
