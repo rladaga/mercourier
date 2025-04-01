@@ -21,7 +21,7 @@ Inside the `config_secrets.py` file, specify the repositories you want to monito
 ## Deployment
 
 We chose to clone the repo in bare mode in the server and to use a worktree strategy,
-creating different branches for each deployment we do.
+creating different branches for each deployment we  do.
 
 Only the first time:
 ```bash
