@@ -3,47 +3,10 @@ name: SSH into VM and update
 on:
   push:
     branches:
-      - main
-      - deploy_gradia
       - deploy_ekto
 
 jobs:
-  deploy_main:
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: SSH into VM and Update main Worktree
-        uses: appleboy/ssh-action@v0.1.10
-        with:
-          host: ${{ secrets.DROPLET_IP }}
-          username: ${{ secrets.DROPLET_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            set -e
-            cd ~/mercourier
-            ./update.sh main
-            echo "Main update script successful!"
-
-  deploy_gradia:
-    if: github.ref == 'refs/heads/deploy_gradia'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: SSH into VM and Update deploy_gradia Worktree
-        uses: appleboy/ssh-action@v0.1.10
-        with:
-          host: ${{ secrets.DROPLET_IP }}
-          username: ${{ secrets.DROPLET_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            set -e
-            cd ~/deploy_gradia
-            ./update.sh deploy_gradia
-            echo "Deploy_gradia update script successful!"
-
   deploy_ekto:
-    if: github.ref == 'refs/heads/deploy_ekto'
     runs-on: ubuntu-latest
 
     steps:
