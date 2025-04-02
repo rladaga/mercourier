@@ -1,15 +1,12 @@
 #!/bin/bash
 
-if [ -z "$1" ]; then
-    echo "Usage: $0 <branch-name>"
-    exit 1
-fi
+set -ex
 
-BRANCH_NAME=$1
-
+BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+SERVICE_NAME="mercourier-${BRANCH_NAME}.service"
 # Stop the service
 
-systemctl --user stop mercourier-${BRANCH_NAME}.service
+systemctl --user stop ${SERVICE_NAME}
 
 # Pull the latest changes from the repository
 
@@ -17,4 +14,4 @@ git pull origin ${BRANCH_NAME}
 
 # Start the service
 
-systemctl --user start mercourier-${BRANCH_NAME}.service
+systemctl --user start ${SERVICE_NAME}

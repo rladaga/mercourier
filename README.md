@@ -29,9 +29,12 @@ git clone --bare https://github.com/rladaga/mercourier.git
 sudo pacman -S --noconfirm python python-pip python-virtualenv # This is for Arch-Linux, modify for your distribution
 ```
 
+Create deployment branch locally
+
 Then for each deployment:
 ```bash
 cd mercourier.git
+git fetch --prune origin "+refs/heads/${BRANCH_NAME}:refs/heads/${BRANCH_NAME}"
 git worktree add ../${BRANCH_NAME} # The branch you will use for deployment
 cd ../${BRANCH_NAME}
 # Populate config_secrets.py
