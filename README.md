@@ -20,21 +20,21 @@ Inside the `config_secrets.py` file, specify the repositories you want to monito
 
 ## Deployment
 
-We chose to clone the repo in bare mode in the server and to use a worktree strategy,
-creating different branches for each deployment we  do.
+We chose to clone the repo in bare mode in the server and use a worktree strategy,
+creating different branches for each deployment we do.
 
 Only the first time:
 ```bash
 git clone --bare https://github.com/rladaga/mercourier.git
-sudo pacman -S --noconfirm python python-pip python-virtualenv # This is for Arch-Linux, modify for your distribution
+./os_dependencies.sh # Install required dependencies
 ```
 
-Create deployment branch locally
+Create deployment branch locally and push it to the remote, this is what we refer below as ${BRANCH_NAME}.
 
 Then for each deployment:
 ```bash
 cd mercourier.git
-git fetch --prune origin "+refs/heads/${BRANCH_NAME}:refs/heads/${BRANCH_NAME}"
+git fetch --prune origin "+refs/heads/${BRANCH_NAME}:refs/heads/${BRANCH_NAME}" # The branch you will use for deployment
 git worktree add ../${BRANCH_NAME} # The branch you will use for deployment
 cd ../${BRANCH_NAME}
 # Populate config_secrets.py
