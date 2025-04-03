@@ -49,7 +49,7 @@ For debug mode, ensure that the `repositories` list is correctly set in the `con
 The `--zulip-off` flag enables debug mode, preventing the bot from sending messages to Zulip while displaying all logs in the console.
 
 ```
-python3 -m venv venv
-venv/bin/pip3 install -r requirements.txt
-venv/bin/python3 main.py --zulip-off
+python -m venv venv
+venv/bin/pip install -r requirements.txt
+venv/bin/python main.py --zulip-off
 ```
