@@ -403,13 +403,12 @@ class GitHub:
             else:
                 created_at_str = "Unknown"
 
-            message = f"💬 New comment on [#{number}]({url}) by [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')}) at {created_at_str}\n\n"
-            message += f"# **Title**: {issue.get('title', 'Unknown title')}\n"
+            message = f"💬 New comment on [#{issue.get('title')}]({url}) by [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')}) at {created_at_str}\n\n"
 
             body = comment.get("body", "").strip()
             if body:
                 body = self.rewrite_github_issue_urls(body)
-            message += f"## **Comment**:\n {body}\n"
+            message += f"\n{body}\n"
 
             event['_message'] = message
             self.on_event(event)
