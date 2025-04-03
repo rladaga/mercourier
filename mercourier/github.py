@@ -11,6 +11,8 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
+class RateLimitExcedeed(Exception):
+    pass
 
 class GitHub:
     def __init__(
@@ -97,47 +99,46 @@ class GitHub:
     def check_repository_events(self, repo_name):
         """Checks new events in every repo."""
 
-        try:
-            events = get(
+
+        events = get(
                 f"https://api.github.com/repos/{repo_name}/events",
                 headers={"If-None-Match": self.last_check_etag[repo_name]},
             )
 
-            rate_limit = events.headers.get("X-RateLimit-Remaining", "unknown")
-            rate_limit_reset = events.headers.get("X-RateLimit-Reset", "unknown")
-            rate_limit_reset_time = datetime.fromtimestamp(int(rate_limit_reset))
-            logger.debug(f"Rate limit remaining: {rate_limit}")
+        rate_limit = events.headers.get("X-RateLimit-Remaining", "unknown")
+        rate_limit_reset = events.headers.get("X-RateLimit-Reset", "unknown")
+        rate_limit_reset_time = datetime.fromtimestamp(int(rate_limit_reset))
+        logger.debug(f"Rate limit remaining: {rate_limit}")
 
 
-            if rate_limit == "0":
-                logger.warning(f"Rate limit exceeded")
-                logger.debug(f"Rate limit reset: {rate_limit_reset_time}")
-                return
+        if rate_limit == "0":
+            logger.warning(f"Rate limit reset: {rate_limit_reset_time}")
+            raise RateLimitExcedeed
 
-            if events.status_code == 304:
-                logger.debug(
-                    f"Checking events for {repo_name}...No new events."
-                )
-                return
-
-            events_json = json.loads(events.content)
-            etag = events.headers["ETag"]
-
-            self.last_check_etag[repo_name] = etag
-
+        if events.status_code == 304:
             logger.debug(
-                f"Last ETag for {repo_name}: {self.last_check_etag[repo_name]}"
+                f"Checking events for {repo_name}...No new events."
             )
+            return
 
-            for event in reversed((events_json)):
-                if event["type"] not in self.handlers:
+        events_json = json.loads(events.content)
+        etag = events.headers["ETag"]
+
+        self.last_check_etag[repo_name] = etag
+
+        logger.debug(
+            f"Last ETag for {repo_name}: {self.last_check_etag[repo_name]}"
+        )
+
+        for event in reversed((events_json)):
+            if event["type"] not in self.handlers:
                     continue
-                logger.debug(
+            logger.debug(
                     f"Found event: {event['type']} at {event['created_at']}"
                 )
-                event_id = event["id"]
+            event_id = event["id"]
 
-                if (
+            if (
                     self.processed_events[repo_name]
                     and event_id <= self.processed_events[repo_name]
                 ):
@@ -146,22 +147,19 @@ class GitHub:
                     )
                     continue
 
-                self.processed_events[repo_name] = event_id
-                logger.debug(
+            self.processed_events[repo_name] = event_id
+            logger.debug(
                     f"Processing event: {event['type']} ({event_id})"
                 )
 
-                handler = self.handlers.get(event["type"])
-                if handler:
+            handler = self.handlers.get(event["type"])
+            if handler:
                     logger.debug(
                         f"Checking events for {repo_name}...Found new event, updating last etag to {etag}"
                     )
                     handler(event)
 
-        except Exception as e:
-            logger.error(
-                f"Unexpected error while checking {repo_name}: {str(e)}"
-            )
+
 
     def handle_push_event(self, event):
         repo_name = event['repo']['name']
@@ -405,13 +403,12 @@ class GitHub:
             else:
                 created_at_str = "Unknown"
 
-            message = f"💬 New comment on [#{number}]({url}) by [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')}) at {created_at_str}\n\n"
-            message += f"# **Title**: {issue.get('title', 'Unknown title')}\n"
+            message = f"💬 New comment on [#{issue.get('title')}]({url}) by [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')}) at {created_at_str}\n\n"
 
             body = comment.get("body", "").strip()
             if body:
                 body = self.rewrite_github_issue_urls(body)
-            message += f"## **Comment**:\n {body}\n"
+            message += f"\n{body}\n"
 
             event['_message'] = message
             self.on_event(event)
@@ -471,6 +468,11 @@ class GitHub:
         )
 
         while True:
-            for repo_name in self.last_check_etag.keys():
-                self.check_repository_events(repo_name)
+            try:
+                for repo_name in self.last_check_etag.keys():
+                    self.check_repository_events(repo_name)
+
+            except RateLimitExcedeed:
+                logger.warning("rate limit exceeded")
+                time.sleep(60*30)
             time.sleep(self.check_interval_s)
