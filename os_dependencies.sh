@@ -17,7 +17,7 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
 elif [[ "$OSTYPE" == "darwin"* ]]; then
 
     if command -v brew &> /dev/null; then
-        sudo brew install $DEPENDENCIES
+        brew install $DEPENDENCIES
     else
         echo "brew is required, please install it"
         exit 1
