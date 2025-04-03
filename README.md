@@ -23,7 +23,6 @@ Inside the `config_secrets.py` file, specify the repositories you want to monito
 We chose to clone the repo in bare mode in the server and use a worktree strategy,
 creating different branches for each deployment we do.
 
-
 ```bash
 git clone --bare https://github.com/rladaga/mercourier.git
 ```
@@ -49,7 +48,7 @@ For debug mode, ensure that the `repositories` list is correctly set in the `con
 The `--zulip-off` flag enables debug mode, preventing the bot from sending messages to Zulip while displaying all logs in the console.
 
 ```
-python3 -m venv venv
-venv/bin/pip3 install -r requirements.txt
-venv/bin/python3 main.py --zulip-off
+python -m venv venv
+venv/bin/pip install -r requirements.txt
+venv/bin/python main.py --zulip-off
 ```
