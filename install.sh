@@ -22,7 +22,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=${CURRENT_DIR}
-ExecStart=venv/bin/python main.py
+ExecStart=./venv/bin/python main.py
 Restart=always
 
 [Install]
