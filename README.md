@@ -18,18 +18,28 @@ To set up the bot and obtain the `ZULIP_EMAIL` and `ZULIP_API_KEY`, go to `Zulip
 
 Inside the `config_secrets.py` file, specify the repositories you want to monitor in the `repositories` list. Refer to `config_secrets.example.py` for guidance on the correct format.
 
-## Installation
+## Deployment
+
+We chose to clone the repo in bare mode in the server and use a worktree strategy,
+creating different branches for each deployment we do.
+
 
 ```bash
-git clone git@github.com:rladaga/mercourier.git
-
-cd mercourier
+git clone --bare https://github.com/rladaga/mercourier.git
 ```
 
-Don't forget to create your dictionary in a `config_secrets.py` file!
+Create deployment branch locally and push it to the remote, this is what we refer below as ${BRANCH_NAME}.
 
-The next steps can be done automatically by running the `install.sh` script (works on Arch Linux).
-If you're using another distribution, you may need to modify `install.sh` accordingly.
+Then for each deployment:
+```bash
+cd mercourier.git
+git fetch --prune origin "+refs/heads/${BRANCH_NAME}:refs/heads/${BRANCH_NAME}" # The branch you will use for deployment
+git worktree add ../${BRANCH_NAME} # The branch you will use for deployment
+cd ../${BRANCH_NAME}
+./os_dependencies.sh # Install required dependencies
+# Populate config_secrets.py, see the example in config_secrets.example.py
+./install.sh
+```
 
 Mercourier also includes an `update.sh` script that easily fetch the latest changes and restarts the service.
 
