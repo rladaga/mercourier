@@ -403,7 +403,7 @@ class GitHub:
             else:
                 created_at_str = "Unknown"
 
-            message = f"💬 New comment on [#{issue.get('title')}]({url}) by [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')}) at {created_at_str}\n\n"
+            message = f"💬 New comment on [{issue.get('title')}]({url}) by [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')}) at {created_at_str}\n\n"
 
             body = comment.get("body", "").strip()
             if body:
