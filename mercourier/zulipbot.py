@@ -90,5 +90,3 @@ class ZulipBot:
         response = self.zulip_client.send_message(request)
         if response["result"] != "success":
            logger.error(f"Failed to send message: {response}")
-        else:
-           logger.debug(f"Debug mode: Message not sent to Zulip: {request}")
