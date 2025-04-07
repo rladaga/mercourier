@@ -166,6 +166,7 @@ class GitHub:
             return
 
         message = format_push_event(event)
+        logger.debug(f"Debug: {message}")
 
         event['_message'] = message
         self.on_event(event)
@@ -176,6 +177,7 @@ class GitHub:
             return
 
         message = format_issue_event(event)
+        logger.debug(f"Debug: {message}")
 
         event['_message'] = message
         self.on_event(event)
@@ -186,6 +188,7 @@ class GitHub:
             return
 
         message = format_pr_event(event)
+        logger.debug(f"Debug: {message}")
 
         event['_message'] = message
         self.on_event(event)
@@ -196,6 +199,7 @@ class GitHub:
             return
 
         message = format_comment_event(event)
+        logger.debug(f"Debug: {message}")
 
         event['_message'] = message
         self.on_event(event)
