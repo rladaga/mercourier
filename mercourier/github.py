@@ -1,12 +1,11 @@
 import json
-import re
 import os
 from requests import get
 import time
 from datetime import datetime
 import logging
 from pathlib import Path
-
+from template import format_pr_event, format_push_event, format_issue_event
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -161,198 +160,33 @@ class GitHub:
                     handler(event)
 
 
-
     def handle_push_event(self, event):
-        repo_name = event['repo']['name']
-
-        event_data = event
-        if not event_data:
-            logger.error("Empty event data received for push event")
+        if not event:
+            logger.error("Empty event data")
             return
 
-        payload = event_data.get("payload", {})
-        if not payload:
-            logger.error("No payload found in event data")
-            return
-
-        commits = payload.get("commits", [])
-        ref = payload.get("ref", "")
-
-        if not ref:
-            logger.error(f"Missing ref in payload: {payload}")
-            return
-
-        branch = ref.split("/")[-1]
-
-        message = f"🔨 {len(commits)} by [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')})\n\n"
-
-        pr_pattern = re.compile(r"\(#(\d+)\)")
-
-        if commits:
-            for commit in commits:
-
-                commit_msg = commit.get("message", "No message").split("\n")[0]
-                commit_sha = commit.get("id", commit.get("sha", "unknown"))[:7]
-                commit_url = f"https://github.com/{repo_name}/commit/{commit_sha}"
-
-                pr_match = pr_pattern.search(commit_msg)
-                if pr_match:
-                    pr_number = pr_match.group(1)
-                    pr_url = f"https://github.com/{repo_name}/pull/{pr_number}"
-                    commit_msg = pr_pattern.sub(
-                        f"([#{pr_number}]({pr_url}))", commit_msg
-                    )
-
-                commit_time = datetime.strptime(
-                    event_data.get("created_at"), "%Y-%m-%dT%H:%M:%SZ"
-                )
-                commit_time_str = commit_time.strftime("%Y-%m-%d %H:%M:%S")
-
-                message += f"- {commit_msg} ([`{commit_sha}`]({commit_url})) at {commit_time_str}\n"
-
-        else:
-            message += "\nNo commits found in push event."
-
-        if payload.get("forced"):
-            message += "\n⚠️ This was a force push!\n"
-
-        if payload.get("created"):
-            message += f"\n🆕 Branch `{branch}` was created\n"
-
-        if payload.get("deleted"):
-            message += f"\n❌ Branch `{branch}` was deleted\n"
+        message = format_push_event(event)
 
         event['_message'] = message
         self.on_event(event)
 
     def handle_issue_event(self, event):
-        repo_name = event['repo']['name']
-
-        event_data = event
-        if not event_data:
-            logger.error("Empty event data received for issue event")
+        if not event:
+            logger.error("Empty event data")
             return
 
-        payload = event_data.get("payload", {})
-        if not payload:
-            logger.error("No payload found in event data")
-            return
-
-        issue = payload.get("issue", {})
-        action = payload.get("action", "")
-
-        url = issue.get("html_url")
-        number = issue.get("number")
-        if not url:
-            url = f"https://github.com/{repo_name}/issues/{number}"
-
-        created_at = issue.get("created_at")
-        if created_at:
-            created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
-            created_at_str = created_at.strftime("%Y-%m-%d %H:%M:%S")
-        else:
-            created_at_str = "Unknown"
-
-        message = f"📝 Issue [#{number}]({url}) {action}\n\n"
-
-        message += "| **Title** | " + issue.get("title", "No title") + " |\n"
-        message += "|-------|-------|\n"
-        message += f"| Author | [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')}) |\n"
-        message += f"| Date | {created_at_str} |\n"
-
-        if issue.get("labels"):
-            labels = [label.get("name", "") for label in issue["labels"]]
-            if labels:
-                message += f"| Labels | {', '.join(labels)} |\n"
-
-        if action == "opened" and issue.get("body"):
-            body = issue.get("body", "").strip()
-            if body:
-                body = self.rewrite_github_issue_urls(body)
-
-            message += f"\n{body}\n"
-
-        if issue.get("comments"):
-            message += f"| Comments | {issue['comments']} |\n"
-
-        if action == "closed":
-            closed_at = issue.get("closed_at")
-            if closed_at:
-                closed_at = datetime.strptime(closed_at, "%Y-%m-%dT%H:%M:%SZ")
-                closed_at_str = closed_at.strftime("%Y-%m-%d %H:%M:%S")
-                message += f"| Closed at | {closed_at_str} |\n"
-
-            state_reason = issue.get("state_reason")
-            if state_reason:
-                message += f"| Reason | {state_reason} |\n"
+        message = format_issue_event(event)
 
         event['_message'] = message
         self.on_event(event)
 
     def handle_pr_event(self, event):
-        repo_name = event['repo']['name']
-
-        event_data = event
-        if not event_data:
-            logger.error("Empty event data received for PR event")
+        if not event:
+            logger.error("Empty event data")
             return
 
-        payload = event_data.get("payload", {})
-        if not payload:
-            logger.error("No payload found in event data")
-            return
-
-        pr = payload.get("pull_request", {})
-        action = payload.get("action", "")
-
-        if not pr or not action:
-            logger.error(f"Missing PR or action in payload: {payload}")
-            return
-
-        url = pr.get("html_url")
-        number = pr.get("number")
-        if not url:
-            url = f"https://github.com/{repo_name}/pull/{number}"
-
-        created_at = pr.get("created_at")
-        if created_at:
-            created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
-            created_at_str = created_at.strftime("%Y-%m-%d %H:%M:%S")
-        else:
-            created_at_str = "Unknown"
-
-        updated_at = pr.get("updated_at")
-        if updated_at:
-            updated_at = datetime.strptime(updated_at, "%Y-%m-%dT%H:%M:%SZ")
-            updated_at_str = updated_at.strftime("%Y-%m-%d %H:%M:%S")
-        else:
-            updated_at_str = "Unknown"
-
-        message = f"🔀 Pull request [#{number}]({url}) {action}\n\n"
-
-        message += "| **Title** | " + pr.get("title", "No title") + " |\n"
-        message += "|-------|-------|\n"
-        message += f"| Author | [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')}) |\n"
-        message += f"| Created at | {created_at_str} |\n"
-        message += (
-            f"| Changes | +{pr.get('additions', 0)} -{pr.get('deletions', 0)} |\n"
-        )
-        message += f"| Files changed | {pr.get('changed_files', 0)} |\n"
-        message += f"| Last updated | {updated_at_str} |\n"
-
-        if action == "opened" and pr.get("body"):
-            body = pr.get("body", "").strip()
-            if body:
-                body = self.rewrite_github_issue_urls(body)
-                body = self.rewrite_issue_numbers(body, repo_name)
-                body = body.replace("|", "\\|")
-                message += "\n**Description:**\n"
-                message += body
-
-        if pr.get("labels"):
-            labels = [label.get("name", "") for label in pr["labels"]]
-            if labels:
-                message += f"| Labels | {', '.join(labels)} |\n"
+        message = format_pr_event(event)
+        print(message)
 
         event['_message'] = message
         self.on_event(event)
@@ -395,53 +229,12 @@ class GitHub:
 
         body = comment.get("body", "").strip()
         if body:
-            body = self.rewrite_github_issue_urls(body)
-        message += f"\n{body}\n"
+            #body = self.rewrite_github_issue_urls(body)
+            message += f"\n{body}\n"
 
         event['_message'] = message
         self.on_event(event)
 
-    def rewrite_issue_numbers(self, body, repo_name):
-        """Rewrite issue numbers (e.g., #7784) as markdown links."""
-
-        issue_number_pattern = re.compile(r"#(\d+)\b")
-        matches = issue_number_pattern.findall(body)
-
-        for issue_number in matches:
-            issue_url = f"https://github.com/{repo_name}/issues/{issue_number}"
-            markdown_link = f"[#{issue_number}]({issue_url})"
-            body = re.sub(rf"#{issue_number}\b", markdown_link, body)
-
-        return body
-
-    def rewrite_github_issue_urls(self, body):
-        """Rewrite GitHub issue URLs in the comment body as [title](url)."""
-        issue_url_pattern = re.compile(
-            r"https://github\.com/([^/]+)/([^/]+)/issues/(\d+)"
-        )
-        matches = issue_url_pattern.findall(body)
-
-        for match in matches:
-            owner, repo, issue_number = match
-            issue_url = f"https://github.com/{owner}/{repo}/issues/{issue_number}"
-
-
-
-            response = get(
-                f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}",
-                headers={"Accept": "application/vnd.github.v3+json"},
-                )
-            if response.status_code == 200:
-                issue_data = response.json()
-                issue_title = issue_data.get("title", "Unknown Issue")
-                markdown_link = f"[{issue_title}]({issue_url})"
-                body = body.replace(issue_url, markdown_link)
-            else:
-                logger.error(
-                    f"Failed to fetch issue details for {issue_url}: {response.status_code}"
-                )
-
-        return body
 
     def run(self):
         """Run the bot with specified check interval (in seconds)."""
