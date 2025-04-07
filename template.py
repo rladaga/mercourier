@@ -11,22 +11,22 @@ PUSH_TEMPLATE = """🔨 {commit_count} by [{username}]({user_url})\n{commit_mess
 COMMIT_TEMPLATE = """- {commit_msg} ([`{commit_sha}`]({commit_url})) at {commit_time_str}\n"""
 
 ISSUE_TEMPLATE="""📝 Issue [#{number}]({url}) {action}\n\n
-| **Title** | {title} |\n
-|-------|-------|\n
-| Author | [{username}]({user_url}) |\n
-| Date | {created_at_str} |\n
+| **Title** | {title} |
+|-------|-------|
+| Author | [{username}]({user_url}) |
+| Date | {created_at_str} |
 {labels_row}{comments_row}{closed_row}{reason_row}
 
 {body}"""
 
 PR_TEMPLATE="""🔀 Pull request [#{number}]({url}) {action}\n\n
-| **Title** | {title}  |\n
-|-------|-------|\n
-| Author | [{username}]({user_url}) |\n
-| Created at | {created_at_str} |\n
-| Changes | +{additions} -{deletions} |\n
-| Files changed | {changed_files} |\n
-| Last updated | {updated_at_str} |\n
+| **Title** | {title}  |
+|-------|-------|
+| Author | [{username}]({user_url}) |
+| Created at | {created_at_str} |
+| Changes | +{additions} -{deletions} |
+| Files changed | {changed_files} |
+| Last updated | {updated_at_str} |
 {labels_row}
 {body}"""
 
@@ -234,7 +234,7 @@ def format_pr_event(event):
             body = rewrite_github_issue_urls(body)
             body = rewrite_issue_numbers(body, repo_name)
             body = body.replace("|", "\\|")
-            body = f"\n {body} \n"
+            body = f"{body} \n"
 
     labels_row=""
     if pr.get("labels"):
