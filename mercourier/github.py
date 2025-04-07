@@ -196,7 +196,6 @@ class GitHub:
             return
 
         message = format_comment_event(event)
-        print(message)
 
         event['_message'] = message
         self.on_event(event)

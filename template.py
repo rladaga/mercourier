@@ -28,7 +28,7 @@ PR_TEMPLATE="""🔀 Pull request [#{number}]({url}) {action}\n\n
 {labels_row}
 {body}"""
 
-COMMENT_TEMPLATE="""💬 New comment on [{title}]({url}) by [{username}]({user_url}) at {created_at_str}\n\n
+COMMENT_TEMPLATE="""💬 New comment on [{title}]({url}) by [{username}]({user_url}) at {created_at_str}\n
 {body}"""
 
 def rewrite_issue_numbers(body, repo_name):
