@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 import logging
 from pathlib import Path
-from template import format_pr_event, format_push_event, format_issue_event
+from template import format_pr_event, format_push_event, format_issue_event, format_comment_event
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -186,51 +186,17 @@ class GitHub:
             return
 
         message = format_pr_event(event)
-        print(message)
 
         event['_message'] = message
         self.on_event(event)
 
     def handle_comment_event(self, event):
-        repo_name = event['repo']['name']
-
-        event_data = event
-        if not event_data:
-            logger.error("Empty event data received for comment event")
+        if not event:
+            logger.error("Empty event data")
             return
 
-        payload = event_data.get("payload", {})
-        if not payload:
-            logger.error("No payload found in event data")
-            return
-
-        comment = payload.get("comment", {})
-        issue = payload.get("issue", {})
-
-        if not comment or not issue:
-            logger.error(
-                f"Missing comment or issue in payload: {payload}"
-            )
-            return
-
-        url = comment.get("html_url")
-        number = issue.get("number")
-        if not url:
-            url = issue.get("html_url", f"https://github.com/{repo_name}/issues/{number}")
-
-        created_at = comment.get("created_at")
-        if created_at:
-            created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
-            created_at_str = created_at.strftime("%Y-%m-%d %H:%M:%S")
-        else:
-            created_at_str = "Unknown"
-
-        message = f"💬 New comment on [{issue.get('title')}]({url}) by [{event['actor'].get('login')}](https://github.com/{event['actor'].get('login')}) at {created_at_str}\n\n"
-
-        body = comment.get("body", "").strip()
-        if body:
-            #body = self.rewrite_github_issue_urls(body)
-            message += f"\n{body}\n"
+        message = format_comment_event(event)
+        print(message)
 
         event['_message'] = message
         self.on_event(event)

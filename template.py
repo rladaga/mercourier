@@ -9,7 +9,7 @@ PUSH_TEMPLATE = """🔨 {commit_count} by [{username}]({user_url})\n{commit_mess
 COMMIT_TEMPLATE = """- {commit_msg} ([`{commit_sha}`]({commit_url})) at {commit_time_str}\n"""
 
 ISSUE_TEMPLATE="""📝 Issue [#{number}]({url}) {action}\n\n
-| **Title** | "  {title}  " |\n
+| **Title** | {title} |\n
 |-------|-------|\n
 | Author | [{username}]({user_url}) |\n
 | Date | {created_at_str} |\n
@@ -18,7 +18,7 @@ ISSUE_TEMPLATE="""📝 Issue [#{number}]({url}) {action}\n\n
 {body}"""
 
 PR_TEMPLATE="""🔀 Pull request [#{number}]({url}) {action}\n\n
-| **Title** | " {title} " |\n
+| **Title** | {title}  |\n
 |-------|-------|\n
 | Author | [{username}]({user_url}) |\n
 | Created at | {created_at_str} |\n
@@ -26,6 +26,9 @@ PR_TEMPLATE="""🔀 Pull request [#{number}]({url}) {action}\n\n
 | Files changed | {changed_files} |\n
 | Last updated | {updated_at_str} |\n
 {labels_row}
+{body}"""
+
+COMMENT_TEMPLATE="""💬 New comment on [{title}]({url}) by [{username}]({user_url}) at {created_at_str}\n\n
 {body}"""
 
 def rewrite_issue_numbers(body, repo_name):
@@ -229,7 +232,7 @@ def format_pr_event(event):
             body = rewrite_github_issue_urls(body)
             body = rewrite_issue_numbers(body, repo_name)
             body = body.replace("|", "\\|")
-            body = f"\n**Description:**\n {body} \n"
+            body = f"\n {body} \n"
 
     labels_row=""
     if pr.get("labels"):
@@ -252,4 +255,41 @@ def format_pr_event(event):
         additions=additions,
         deletions=deletions,
         changed_files=changed_files
+    )
+
+def format_comment_event(event):
+    payload=event.get("payload", {})
+    comment=payload.get("comment", {})
+    issue=payload.get("issue", {})
+    repo_name=event.get("repo", {}).get("name", "unknown")
+
+    url = comment.get("html_url")
+    number = issue.get("number")
+    title=issue.get("title")
+
+    username = event.get('actor', {}).get('login', 'unknown')
+    user_url = f"https://github.com/{username}"
+
+    if not url:
+        url = issue.get("html_url", f"https://github.com/{repo_name}/issues/{number}")
+
+    created_at = comment.get("created_at")
+    if created_at:
+        created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
+        created_at_str = created_at.strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        created_at_str = "Unknown"
+
+    body = comment.get("body", "").strip()
+    if body:
+        body = rewrite_github_issue_urls(body)
+        body = f"\n{body}\n"
+
+    return COMMENT_TEMPLATE.format(
+        title=title,
+        url=url,
+        username=username,
+        user_url=user_url,
+        created_at_str=created_at_str,
+        body=body
     )
