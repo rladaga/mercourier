@@ -1,7 +1,9 @@
 from datetime import datetime
 import re
 from requests import get
-from github import logger
+import logging
+
+logger=logging.getLogger("mercourier.github")
 
 PUSH_TEMPLATE = """🔨 {commit_count} by [{username}]({user_url})\n{commit_messages}{force_push}{branch_created}{branch_deleted}
 """
