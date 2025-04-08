@@ -137,7 +137,6 @@ class GitHub:
             logger.error("Empty event data")
             return
 
-        logger.debug(event.get("payload", {}))
         self.on_event(event)
 
     def run(self):
