@@ -1,4 +1,4 @@
-🔀 Pull request [#{number}]({url}) {action}\n\n
+🔀 Pull request [#{number}]({url}) {action}
 
 | **Title** | {title}  |
 |-------|-------|
@@ -8,4 +8,5 @@
 | Files changed | {changed_files} |
 | Last updated | {updated_at_str} |
 {labels_row}
+
 {body}

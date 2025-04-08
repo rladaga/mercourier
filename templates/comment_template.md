@@ -1,2 +1,3 @@
-💬 New comment on [{title}]({url}) by [{username}]({user_url}) at {created_at_str}\n
-{body
+💬 New comment on [{title}]({url}) by [{username}]({user_url}) at {created_at_str}
+
+{body}

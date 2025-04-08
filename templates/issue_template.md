@@ -1,4 +1,4 @@
-📝 Issue [#{number}]({url}) {action}\n\n
+📝 Issue [#{number}]({url}) {action}
 
 | **Title** | {title} |
 |-------|-------|
