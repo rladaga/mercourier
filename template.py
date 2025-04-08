@@ -10,8 +10,6 @@ def load_template(template_name):
     with open(os.path.join("templates", f"{template_name}.md"), encoding="utf-8") as f:
         return f.read()
 
-ISSUE_TEMPLATE = load_template("issue_opened")
-
 PUSH_TEMPLATE = load_template("push_template")
 
 COMMIT_TEMPLATE = load_template("commit_template")
