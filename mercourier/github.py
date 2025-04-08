@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 import logging
 from pathlib import Path
-from template import format_pr_event, format_push_event, format_issue_event, format_comment_event
+
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -30,10 +30,10 @@ class GitHub:
         self.check_interval_s = check_interval_s
 
         self.handlers = {
-            "PushEvent": self.handle_push_event,
-            "IssuesEvent": self.handle_issue_event,
-            "PullRequestEvent": self.handle_pr_event,
-            "IssueCommentEvent": self.handle_comment_event,
+            "PushEvent",
+            "IssuesEvent",
+            "PullRequestEvent",
+            "IssueCommentEvent",
         }
 
         logger.info("Bot initialized successfully")
@@ -71,45 +71,31 @@ class GitHub:
                 self.processed_events[repo_name] = data["processed_events"]
 
                 if repo_name not in self.repositories:
-                    logger.info(
-                        f"Repository {repo_name} not found in your repositories to check. Removing from the list."
-                    )
+                    logger.info(f"Repository {repo_name} not found in your repositories to check. Removing from the list.")
                     self.last_check_etag.pop(repo_name, None)
                 else:
-                    logger.info(
-                        f"Added repository: {repo_name} with ETag {self.last_check_etag[repo_name]}"
-                    )
+                    logger.info(f"Added repository: {repo_name} with ETag {self.last_check_etag[repo_name]}")
 
-            logger.info(
-                "Last check etag and processed events loaded from file"
-            )
+            logger.info("Last check etag and processed events loaded from file")
         else:
-            logger.info(
-                "Last check file not found. State will be initialized when repositories are added."
-            )
+            logger.info("Last check file not found. State will be initialized when repositories are added.")
 
     def add_repository(self, repo_name):
         """Add a repository to monitor."""
         self.last_check_etag[repo_name] = ""
         self.processed_events[repo_name] = None
-        logger.info(
-            f"Added repository: {repo_name} with last ETag: {self.last_check_etag[repo_name]}"
-        )
+        logger.info(f"Added repository: {repo_name} with last ETag: {self.last_check_etag[repo_name]}")
 
     def check_repository_events(self, repo_name):
         """Checks new events in every repo."""
 
-
-        events = get(
-                f"https://api.github.com/repos/{repo_name}/events",
-                headers={"If-None-Match": self.last_check_etag[repo_name]},
-            )
+        events = get(f"https://api.github.com/repos/{repo_name}/events",
+                headers={"If-None-Match": self.last_check_etag[repo_name]},)
 
         rate_limit = events.headers.get("X-RateLimit-Remaining", "unknown")
         rate_limit_reset = events.headers.get("X-RateLimit-Reset", "unknown")
         rate_limit_reset_time = datetime.fromtimestamp(int(rate_limit_reset))
         logger.debug(f"Rate limit remaining: {rate_limit}")
-
 
         if rate_limit == "0":
             logger.warning(f"Rate limit reset: {rate_limit_reset_time}")
@@ -126,90 +112,37 @@ class GitHub:
 
         self.last_check_etag[repo_name] = etag
 
-        logger.debug(
-            f"Last ETag for {repo_name}: {self.last_check_etag[repo_name]}"
-        )
+        logger.debug(f"Last ETag for {repo_name}: {self.last_check_etag[repo_name]}")
 
         for event in reversed((events_json)):
+
             if event["type"] not in self.handlers:
                     continue
-            logger.debug(
-                    f"Found event: {event['type']} at {event['created_at']}"
-                )
-            event_id = event["id"]
 
-            if (
-                    self.processed_events[repo_name]
-                    and event_id <= self.processed_events[repo_name]
-                ):
-                    logger.debug(
-                        f"Skipping already processed event: {event['type']} at {event['created_at']}"
-                    )
+            logger.debug(f"Found event: {event['type']} at {event['created_at']}")
+
+            event_id = event["id"]
+            if (self.processed_events[repo_name] and event_id <= self.processed_events[repo_name]):
+                    logger.debug(f"Skipping already processed event: {event['type']} at {event['created_at']}")
                     continue
 
             self.processed_events[repo_name] = event_id
-            logger.debug(
-                    f"Processing event: {event['type']} ({event_id})"
-                )
+            logger.debug(f"Processing event: {event['type']} ({event_id})")
 
-            handler = self.handlers.get(event["type"])
-            if handler:
-                    logger.debug(
-                        f"Checking events for {repo_name}...Found new event, updating last etag to {etag}"
-                    )
-                    handler(event)
+            logger.debug(f"Checking events for {repo_name}...Found new event, updating last etag to {etag}")
+            self.handle_event(event)
 
-
-    def handle_push_event(self, event):
+    def handle_event(self, event):
         if not event:
             logger.error("Empty event data")
             return
 
-        message = format_push_event(event)
-        logger.debug(f"Debug: {message}")
-
-        event['_message'] = message
+        logger.debug(event.get("payload", {}))
         self.on_event(event)
-
-    def handle_issue_event(self, event):
-        if not event:
-            logger.error("Empty event data")
-            return
-
-        message = format_issue_event(event)
-        logger.debug(f"Debug: {message}")
-
-        event['_message'] = message
-        self.on_event(event)
-
-    def handle_pr_event(self, event):
-        if not event:
-            logger.error("Empty event data")
-            return
-
-        message = format_pr_event(event)
-        logger.debug(f"Debug: {message}")
-
-        event['_message'] = message
-        self.on_event(event)
-
-    def handle_comment_event(self, event):
-        if not event:
-            logger.error("Empty event data")
-            return
-
-        message = format_comment_event(event)
-        logger.debug(f"Debug: {message}")
-
-        event['_message'] = message
-        self.on_event(event)
-
 
     def run(self):
         """Run the bot with specified check interval (in seconds)."""
-        logger.info(
-            f"Bot started, monitoring repositories: {', '.join(self.last_check_etag.keys())}"
-        )
+        logger.info(f"Bot started, monitoring repositories: {', '.join(self.last_check_etag.keys())}")
 
         while True:
             try:

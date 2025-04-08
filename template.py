@@ -134,7 +134,6 @@ def format_issue_event(event):
     payload=event.get("payload", {})
     issue=payload.get("issue", {})
     action=payload.get("action", {})
-    repo_name=event.get("repo", {}).get("name", "unknown")
 
     number=issue.get("number")
     url=issue.get("html_url")

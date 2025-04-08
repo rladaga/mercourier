@@ -1,5 +1,6 @@
 import logging
 from zulip import Client
+from template import format_pr_event, format_push_event, format_issue_event, format_comment_event
 
 
 logger = logging.getLogger(__name__)
@@ -55,23 +56,34 @@ class ZulipBot:
 
     def on_event(self, event):
         repo_name = event['repo']['name']
-        message = event['_message']
         tipo = event['type']
         if tipo == "PushEvent":
             branch = event['payload']['ref'].split('/')[-1]
+
+            message = format_push_event(event)
+
             self.send_zulip_message(topic=f"{repo_name}/push/{branch}", content=message)
         elif tipo == "IssuesEvent":
             number = event['payload']['issue']['number']
+
+            message = format_issue_event(event)
+
             self.send_zulip_message(
                 topic=f"{repo_name}/issues/{number}",
                 content=message
             )
         elif tipo == "PullRequestEvent":
             number = event['payload']['pull_request']['number']
+
+            message = format_pr_event(event)
+
             self.send_zulip_message(topic=f"{repo_name}/pr/{number}", content=message)
         elif tipo == "IssueCommentEvent":
             issue = event['payload']['issue']
             number = issue['number']
+
+            message = format_comment_event(event)
+
             if "pull_request" in issue:
                 topic = f"{repo_name}/pr/{number}"
             else:
