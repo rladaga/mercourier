@@ -55,3 +55,13 @@ venv/bin/python main.py --zulip-off
 ```
 
 This shows everything in your console instead, so you can see what would be sent without actually sending it.
+
+## Authors
+
+- [@franalbani](https://github.com/franalbani)
+- [@rladaga](https://github.com/rladaga)
+- [@juanrunzio](https://github.com/juanrunzio)
+
+## Contributors
+
+- Be the first!
