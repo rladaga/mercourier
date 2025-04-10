@@ -68,19 +68,19 @@ class ZulipBot:
 
             message = format_push_event(event)
 
-            self.send_zulip_message(topic=f"{repo_name}/push/{branch}", content=message)
+            self.send_message(topic=f"{repo_name}/push/{branch}", content=message)
         elif tipo == "IssuesEvent":
             number = event['payload']['issue']['number']
 
             message = format_issue_event(event)
 
-            self.send_zulip_message(topic=f"{repo_name}/issues/{number}",content=message)
+            self.send_message(topic=f"{repo_name}/issues/{number}",content=message)
         elif tipo == "PullRequestEvent":
             number = event['payload']['pull_request']['number']
 
             message = format_pr_event(event)
 
-            self.send_zulip_message(topic=f"{repo_name}/pr/{number}", content=message)
+            self.send_message(topic=f"{repo_name}/pr/{number}", content=message)
         elif tipo == "IssueCommentEvent":
             issue = event['payload']['issue']
             number = issue['number']
@@ -91,18 +91,18 @@ class ZulipBot:
                 topic = f"{repo_name}/pr/{number}"
             else:
                 topic = f"{repo_name}/issues/{number}"
-            self.send_zulip_message(topic=topic, content=message)
+            self.send_message(topic=topic, content=message)
 
 
-    def send_zulip_message(self, topic, content,):
+    def send_message(self, topic, content,):
         request = {
             "type": "stream",
             "to": self.stream_name,
             "topic": topic,
             "content": content,
         }
-
-        logger.debug(f"Debug mode: {content}")
+        
+        logger.debug(f"Message not sent to Zulip: {content}") # When --zulip-off
 
         if self.zulip_on:
             response = self.zulip_client.send_message(request)
