@@ -1,0 +1,1 @@
+- {commit_msg} ([`{commit_sha}`]({commit_url})) at {commit_time_str}
