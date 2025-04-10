@@ -1,6 +1,6 @@
 import logging
 from zulip import Client
-from template import format_pr_event, format_push_event, format_issue_event, format_comment_event
+from .template import format_pr_event, format_push_event, format_issue_event, format_comment_event
 
 
 logger = logging.getLogger(__name__)
@@ -33,26 +33,32 @@ class ZulipBot:
         zulip_api_key=None,
         zulip_site=None,
         stream_name=None,
+        zulip_on=True
     ):
         self.stream_name = stream_name
+        self.zulip_client= None
+        self.zulip_on = zulip_on
 
-        self.zulip_client = Client(
-            email=zulip_email, api_key=zulip_api_key, site=zulip_site
-        )
-
-        self.log_handler = ZulipHandler(self.zulip_client, self.stream_name)
-        self.log_handler.setFormatter(
-            logging.Formatter(
-                "*%(asctime)s* - **%(name)s** - `%(levelname)s`\n\n%(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
+        if zulip_on:
+            self.zulip_client = Client(
+                email=zulip_email, api_key=zulip_api_key, site=zulip_site
             )
-        )
-        logger.addHandler(self.log_handler)
-        self.log_handler.setLevel(logging.DEBUG)
 
-        logger.info(
-            f"Zulip client connected to {zulip_site} as {zulip_email}"
-        )
+            self.log_handler = ZulipHandler(self.zulip_client, self.stream_name)
+            self.log_handler.setFormatter(
+                    logging.Formatter(
+                    "*%(asctime)s* - **%(name)s** - `%(levelname)s`\n\n%(message)s",
+                    datefmt="%Y-%m-%d %H:%M:%S",
+                )
+            )
+
+            logger.addHandler(self.log_handler)
+            self.log_handler.setLevel(logging.DEBUG)
+
+            logger.info(
+                f"Zulip client connected to {zulip_site} as {zulip_email}"
+            )
+
 
     def on_event(self, event):
         repo_name = event['repo']['name']
@@ -68,10 +74,7 @@ class ZulipBot:
 
             message = format_issue_event(event)
 
-            self.send_zulip_message(
-                topic=f"{repo_name}/issues/{number}",
-                content=message
-            )
+            self.send_zulip_message(topic=f"{repo_name}/issues/{number}",content=message)
         elif tipo == "PullRequestEvent":
             number = event['payload']['pull_request']['number']
 
@@ -91,7 +94,7 @@ class ZulipBot:
             self.send_zulip_message(topic=topic, content=message)
 
 
-    def send_zulip_message(self, topic, content):
+    def send_zulip_message(self, topic, content,):
         request = {
             "type": "stream",
             "to": self.stream_name,
@@ -99,6 +102,9 @@ class ZulipBot:
             "content": content,
         }
 
-        response = self.zulip_client.send_message(request)
-        if response["result"] != "success":
-           logger.error(f"Failed to send message: {response}")
+        logger.debug(f"Debug mode: {content}")
+
+        if self.zulip_on:
+            response = self.zulip_client.send_message(request)
+            if response["result"] != "success":
+                logger.error(f"Failed to send message: {response}")

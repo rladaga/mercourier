@@ -10,6 +10,13 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
+HANDLERS = {
+    "PushEvent",
+    "IssuesEvent",
+    "PullRequestEvent",
+    "IssueCommentEvent",
+}
+
 class RateLimitExcedeed(Exception):
     def __init__(self, message="Rate limit exceeded"):
         super().__init__(message)
@@ -28,13 +35,6 @@ class GitHub:
         self.last_check_file = last_check_file
         self.on_event = on_event
         self.check_interval_s = check_interval_s
-
-        self.handlers = {
-            "PushEvent",
-            "IssuesEvent",
-            "PullRequestEvent",
-            "IssueCommentEvent",
-        }
 
         logger.info("Bot initialized successfully")
 
@@ -116,7 +116,7 @@ class GitHub:
 
         for event in reversed((events_json)):
 
-            if event["type"] not in self.handlers:
+            if event["type"] not in HANDLERS:
                     continue
 
             logger.debug(f"Found event: {event['type']} at {event['created_at']}")
@@ -137,7 +137,6 @@ class GitHub:
             logger.error("Empty event data")
             return
 
-        logger.debug(event.get("payload", {}))
         self.on_event(event)
 
     def run(self):
