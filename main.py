@@ -29,6 +29,7 @@ def main():
     args = parser.parse_args()
 
     zulip_on = not args.zulip_off
+    print(zulip_on)
 
     config = load_config()
 
@@ -37,24 +38,25 @@ def main():
         check_interval_s=config.get("check_interval"),
     )
 
-    if zulip_on:
-        zulip = ZulipBot(
+    zulip = ZulipBot(
             zulip_email=config.get("zulip_email"),
             zulip_api_key=config.get("zulip_api_key"),
             zulip_site=config.get("zulip_site"),
             stream_name=config.get("zulip_stream"),
-        )
-        # github.on_event = lambda e: print(e)
-        github.on_event = zulip.on_event
+            zulip_on=zulip_on,
+    )
+
+    github.on_event = zulip.on_event
+    logging.getLogger("mercourier.zulipbot").addHandler(console_handler)
+
+    if zulip_on:
         zulip.log_handler.setLevel(logging.INFO)
         logger.addHandler(zulip.log_handler)
-        logging.getLogger('mercourier.zulipbot').addHandler(console_handler)
-        logging.getLogger('mercourier.github').addHandler(zulip.log_handler)
+        logging.getLogger("mercourier.github").addHandler(zulip.log_handler)
+
 
     def handle_signal(signum, frame):
-        logger.debug(
-            f"Received {signal.Signals(signum).name}. Saving last check and exiting..."
-        )
+        logger.debug(f"Received {signal.Signals(signum).name}. Saving last check and exiting...")
         github.save_last_check()
         logger.info("Closing bot...")
         raise SystemExit(0)

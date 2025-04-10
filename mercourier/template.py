@@ -1,37 +1,24 @@
 from datetime import datetime
 import re
+import os
 from requests import get
 import logging
 
 logger=logging.getLogger("mercourier.github")
 
-PUSH_TEMPLATE = """🔨 {commit_count} by [{username}]({user_url})\n{commit_messages}{force_push}{branch_created}{branch_deleted}
-"""
+def load_template(template_name):
+    with open(os.path.join("templates", f"{template_name}.md"), encoding="utf-8") as f:
+        return f.read()
 
-COMMIT_TEMPLATE = """- {commit_msg} ([`{commit_sha}`]({commit_url})) at {commit_time_str}\n"""
+PUSH_TEMPLATE = load_template("push_template")
 
-ISSUE_TEMPLATE="""📝 Issue [#{number}]({url}) {action}\n\n
-| **Title** | {title} |
-|-------|-------|
-| Author | [{username}]({user_url}) |
-| Date | {created_at_str} |
-{labels_row}{comments_row}{closed_row}{reason_row}
+COMMIT_TEMPLATE = load_template("commit_template")
 
-{body}"""
+ISSUE_TEMPLATE = load_template("issue_template")
 
-PR_TEMPLATE="""🔀 Pull request [#{number}]({url}) {action}\n\n
-| **Title** | {title}  |
-|-------|-------|
-| Author | [{username}]({user_url}) |
-| Created at | {created_at_str} |
-| Changes | +{additions} -{deletions} |
-| Files changed | {changed_files} |
-| Last updated | {updated_at_str} |
-{labels_row}
-{body}"""
+PR_TEMPLATE = load_template("pr_template")
 
-COMMENT_TEMPLATE="""💬 New comment on [{title}]({url}) by [{username}]({user_url}) at {created_at_str}\n
-{body}"""
+COMMENT_TEMPLATE = load_template("comment_template")
 
 def rewrite_issue_numbers(body, repo_name):
     """Rewrite issue numbers (e.g., #7784) as markdown links."""
@@ -134,7 +121,6 @@ def format_issue_event(event):
     payload=event.get("payload", {})
     issue=payload.get("issue", {})
     action=payload.get("action", {})
-    repo_name=event.get("repo", {}).get("name", "unknown")
 
     number=issue.get("number")
     url=issue.get("html_url")
