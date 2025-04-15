@@ -19,7 +19,7 @@ def main():
         logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     )
     logger.addHandler(console_handler)
-    logging.getLogger('mercourier.github').addHandler(console_handler)
+    logging.getLogger("mercourier.github").addHandler(console_handler)
     logger.info("Starting bot...")
 
     parser = argparse.ArgumentParser()
@@ -39,11 +39,11 @@ def main():
     )
 
     zulip = ZulipBot(
-            zulip_email=config.get("zulip_email"),
-            zulip_api_key=config.get("zulip_api_key"),
-            zulip_site=config.get("zulip_site"),
-            stream_name=config.get("zulip_stream"),
-            zulip_on=zulip_on,
+        zulip_email=config.get("zulip_email"),
+        zulip_api_key=config.get("zulip_api_key"),
+        zulip_site=config.get("zulip_site"),
+        stream_name=config.get("zulip_stream"),
+        zulip_on=zulip_on,
     )
 
     github.on_event = zulip.on_event
@@ -54,9 +54,10 @@ def main():
         logger.addHandler(zulip.log_handler)
         logging.getLogger("mercourier.github").addHandler(zulip.log_handler)
 
-
     def handle_signal(signum, frame):
-        logger.debug(f"Received {signal.Signals(signum).name}. Saving last check and exiting...")
+        logger.debug(
+            f"Received {signal.Signals(signum).name}. Saving last check and exiting..."
+        )
         github.save_last_check()
         logger.info("Closing bot...")
         raise SystemExit(0)
