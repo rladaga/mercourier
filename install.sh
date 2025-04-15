@@ -3,12 +3,6 @@ set -ex
 
 BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
 
-# Create a virtual environment
-python -m venv venv
-
-# Install required packages
-venv/bin/pip install -r requirements.txt
-
 # Create systemd service file
 CURRENT_DIR=$(pwd)
 SERVICE_NAME="mercourier-${BRANCH_NAME}.service"
@@ -22,7 +16,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=${CURRENT_DIR}
-ExecStart=${CURRENT_DIR}/venv/bin/python ${CURRENT_DIR}/main.py
+ExecStart=/usr/bin/uv run main.py
 Restart=always
 
 [Install]

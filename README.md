@@ -46,12 +46,11 @@ Mercourier also includes an `update.sh` script that easily fetch the latest chan
 
 ## Local Debugging
 
-When working on Mercourier locally, use the `--zulip-off` flag to avoid spamming your team channels:
+When working on Mercourier locally, use the `--zulip-off` flag to avoid spamming your team channels.
+First you will need to install `uv`
 
 ```bash
-python -m venv venv
-venv/bin/pip install -r requirements.txt
-venv/bin/python main.py --zulip-off
+uv run main.py --zulip-off
 ```
 
 This shows everything in your console instead, so you can see what would be sent without actually sending it.
