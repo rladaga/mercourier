@@ -44,16 +44,25 @@ cd ../${BRANCH_NAME}
 
 Mercourier also includes an `update.sh` script that easily fetch the latest changes and restarts the service.
 
-## Local Debugging
+## Development
+
+First you will need to install `uv`
+
+### Local Debugging
 
 When working on Mercourier locally, use the `--zulip-off` flag to avoid spamming your team channels.
-First you will need to install `uv`
 
 ```bash
 uv run main.py --zulip-off
 ```
 
 This shows everything in your console instead, so you can see what would be sent without actually sending it.
+
+### Testing
+
+```bash
+uv run pytest
+```
 
 ## Authors
 
