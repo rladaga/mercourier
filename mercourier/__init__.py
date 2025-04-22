@@ -1,4 +1,7 @@
-from .github import GitHub
-from .zulipbot import ZulipBot
-from .config import load_config
-from .template import rewrite_issue_numbers, rewrite_github_issue_urls
+from .github import GitHub as GitHub
+from .zulipbot import ZulipBot as ZulipBot
+from .config import load_config as load_config
+from .template import (
+    rewrite_issue_numbers as rewrite_issue_numbers,
+    rewrite_github_issue_urls as rewrite_github_issue_urls,
+)
