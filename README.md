@@ -5,6 +5,7 @@ A simple Github-to-Zulip notification bot that keeps your team in the loop, avoi
 ## What It Does
 
 Mercourier watches your GitHub repos and sends important events directly to your Zulip channels:
+
 - Issue and PR activity, including comments
 - Code pushes
 - Self-monitoring (sends its own logs to a dedicated Zulip topic)
@@ -32,6 +33,7 @@ git clone --bare https://github.com/rladaga/mercourier.git
 Create deployment branch locally and push it to the remote, this is what we refer below as ${BRANCH_NAME}.
 
 Then for each deployment:
+
 ```bash
 cd mercourier.git
 git fetch --prune origin "+refs/heads/${BRANCH_NAME}:refs/heads/${BRANCH_NAME}" # The branch you will use for deployment
@@ -46,7 +48,7 @@ Mercourier also includes an `update.sh` script that easily fetch the latest chan
 
 ## Development
 
-First you will need to install `uv`
+First you will need to install [`uv`](https://github.com/astral-sh/uv)
 
 ### Local Debugging
 
