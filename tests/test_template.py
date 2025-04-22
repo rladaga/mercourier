@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import patch
 from mercourier import rewrite_issue_numbers, rewrite_github_issue_urls
 

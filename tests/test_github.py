@@ -1,4 +1,3 @@
-import pytest
 from mercourier import GitHub
 
 
