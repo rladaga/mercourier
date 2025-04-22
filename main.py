@@ -23,26 +23,29 @@ def main():
     logger.info("Starting bot...")
 
     parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "config_path",
+        nargs="?",
+        default="config_secrets.py",
+        help="Path to config file (default: config_secrets.py)",
+    )
     parser.add_argument(
         "--zulip-off", action="store_true", help="Turn off Zulip notifications"
     )
+
     args = parser.parse_args()
 
     zulip_on = not args.zulip_off
-    print(zulip_on)
 
-    config = load_config()
+    config = load_config(args.config_path)
 
     github = GitHub(
-        repositories=config.get("repositories"),
-        check_interval_s=config.get("check_interval"),
+        **config["github"],
     )
 
     zulip = ZulipBot(
-        zulip_email=config.get("zulip_email"),
-        zulip_api_key=config.get("zulip_api_key"),
-        zulip_site=config.get("zulip_site"),
-        stream_name=config.get("zulip_stream"),
+        **config["zulip"],
         zulip_on=zulip_on,
     )
 
