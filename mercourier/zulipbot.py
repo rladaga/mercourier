@@ -38,10 +38,10 @@ class ZulipBot:
         zulip_email=None,
         zulip_api_key=None,
         zulip_site=None,
-        stream_name=None,
+        zulip_stream=None,
         zulip_on=True,
     ):
-        self.stream_name = stream_name
+        self.stream_name = zulip_stream
         self.zulip_client = None
         self.zulip_on = zulip_on
 
