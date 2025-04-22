@@ -37,6 +37,7 @@ class GitHub:
         self.last_check_file = last_check_file
         self.on_event = on_event
         self.check_interval_s = check_interval_s
+        self.current_repo_index = 0
 
         logger.info("Bot initialized successfully")
 
@@ -164,8 +165,18 @@ class GitHub:
 
         while True:
             try:
-                for repo_name in self.last_check_etag.keys():
+                total_repos = len(self.repositories)
+                for i in range(self.current_repo_index, total_repos):
+                    repo_name = self.repositories[i]
                     self.check_repository_events(repo_name)
+                    self.current_repo_index = (i + 1) % total_repos
             except RateLimitExcedeed:
-                time.sleep(60 * 30)
+                logger.warning(
+                    f"Rate limit exceeded while checking {self.repositories[self.current_repo_index]}"
+                )
+                logger.info("Waiting for rate limit reset...")
+                time.sleep(60 * 60)
+                continue
+
+            self.current_repo_index = 0
             time.sleep(self.check_interval_s)
