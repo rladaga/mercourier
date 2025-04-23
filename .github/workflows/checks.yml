@@ -1,4 +1,4 @@
-name: Run tests on deploy
+name: Run linter and tests on deploy
 
 on:
   push:
@@ -15,6 +15,9 @@ jobs:
 
     - name: Install uv
       uses: astral-sh/setup-uv@v5
+
+    - name: Run linter
+      run: uv run ruff check
 
     - name: Run tests
       run: uv run pytest
