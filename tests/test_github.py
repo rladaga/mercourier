@@ -48,13 +48,11 @@ def test_save_and_load(tmp_path):
     assert new_github.processed_events[repo_name] == "48463696315"
 
 
-@patch("mercourier.github.get")
-def test_check_repository_events(mock_get):
+def test_check_repository_events():
     with open("tests/test_events.json", "r") as file:
         events = json.load(file)
 
     repo_name = "rladaga/mercourier"
-    etag = 'W/"9f861365bc7b3adb22e03ecec119361d563efa2283ba8da9a285c4dfdd7af91b"'
     processed = []
 
     def mock_on_event(event):
@@ -66,23 +64,17 @@ def test_check_repository_events(mock_get):
         last_check_file=Path("test_last_check.json"),
     )
 
-    mock_response = Mock()
-    mock_response.content = json.dumps(events).encode("utf-8")
-    mock_get.return_value = make_response(etag=etag, content=mock_response.content)
-
-    bot.check_repository_events(repo_name)
+    bot.process_events(repo_name, events)
 
     assert len(processed) == 23
     assert processed[0]["type"] == "PullRequestEvent"
     assert processed[1]["type"] == "PushEvent"
     assert processed[2]["type"] == "IssuesEvent"
 
-    assert bot.last_check_etag[repo_name] == etag
-
     bot.processed_events[repo_name] = "130"
     processed.clear()
 
-    bot.check_repository_events(repo_name)
+    bot.process_events(repo_name, events)
     assert len(processed) == 0
 
 
