@@ -1,0 +1,17 @@
+name: Run tests on deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run tests
+      run: uv run pytest
