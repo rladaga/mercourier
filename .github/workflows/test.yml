@@ -17,6 +17,4 @@ jobs:
       uses: astral-sh/setup-uv@v5
 
     - name: Install dependencies and run tests
-      run: |
-        uv venv
-        uv run pytest
+      run: uv run pytest
