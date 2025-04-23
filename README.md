@@ -10,6 +10,20 @@ Mercourier watches your GitHub repos and sends important events directly to your
 - Code pushes
 - Self-monitoring (sends its own logs to a dedicated Zulip topic)
 
+### GitHub Events to Zulip Topics Mapping
+
+Here you can see which events are currently handled.
+Those not in this list are ignored.
+
+| GitHub Event | Description | Zulip Topic Format |
+|--------------|-------------|-------------------|
+| PushEvent | Code pushed to repository | `{repo_name}/push/{branch}` |
+| IssuesEvent | Issue opened, closed, etc. | `{repo_name}/issues/{issue_number}` |
+| PullRequestEvent | PR opened, closed, merged, etc. | `{repo_name}/pr/{pr_number}` |
+| IssueCommentEvent | Comment on an issue | `{repo_name}/issues/{issue_number}` |
+| IssueCommentEvent | Comment on a PR | `{repo_name}/pr/{pr_number}` |
+| Log messages | Bot's internal logs | `log/{LOG_LEVEL}` |
+
 ## Setting Up the Bot
 
 Getting your own Mercourier running is quite simple:
