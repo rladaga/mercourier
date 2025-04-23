@@ -78,18 +78,34 @@ def test_check_repository_events():
     assert len(processed) == 0
 
 
-@patch("mercourier.github.get")
-def test_rate_limit_exception(mock_get):
-    mock_get.return_value = make_response(remaining="0")
-
+def test_handle_response():
+    repo_name = "user/repo"
     bot = GitHub(
-        repositories=["user/repo"],
+        repositories=[repo_name],
         on_event=lambda e: None,
         last_check_file=Path("test_last_check.json"),
     )
 
-    with pytest.raises(RateLimitExcedeed):
-        bot.check_repository_events("user/repo")
+    response = make_response(status=304)
+    result = bot.handle_response(repo_name, response)
+
+    assert result is None
+
+
+def test_rate_limit_exception():
+    repo_name = "user/repo"
+    bot = GitHub(
+        repositories=[repo_name],
+        on_event=lambda e: None,
+        last_check_file=Path("test_last_check.json"),
+    )
+
+    response = make_response(remaining="0")
+
+    with pytest.raises(RateLimitExcedeed) as exception_info:
+        bot.handle_response(repo_name, response)
+
+    assert "Rate limit reached" in str(exception_info.value)
 
 
 @patch("mercourier.github.get")
