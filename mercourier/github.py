@@ -96,16 +96,19 @@ class GitHub:
             f"Added repository: {repo_name} with last ETag: {self.last_check_etag[repo_name]}"
         )
 
-    def check_repository_events(self, repo_name):
-        """Checks new events in every repo."""
+    def fetch_repository_events(self, repo_name):
 
         events = get(
             f"https://api.github.com/repos/{repo_name}/events",
             headers={"If-None-Match": self.last_check_etag[repo_name]},
         )
 
-        rate_limit = events.headers.get("X-RateLimit-Remaining", "unknown")
-        rate_limit_reset = events.headers.get("X-RateLimit-Reset", "unknown")
+        return events
+
+    def handle_response(self, repo_name, response):
+
+        rate_limit = response.headers.get("X-RateLimit-Remaining", "unknown")
+        rate_limit_reset = response.headers.get("X-RateLimit-Reset", "unknown")
         rate_limit_reset_time = datetime.fromtimestamp(int(rate_limit_reset))
         logger.debug(f"Rate limit remaining: {rate_limit}")
 
@@ -115,16 +118,21 @@ class GitHub:
                 f"Rate limit reached. Reset at {rate_limit_reset_time}"
             )
 
-        if events.status_code == 304:
+        if response.status_code == 304:
             logger.debug(f"Checking events for {repo_name}...No new events.")
             return
 
-        events_json = json.loads(events.content)
-        etag = events.headers["ETag"]
-
+        etag = response.headers["ETag"]
         self.last_check_etag[repo_name] = etag
-
+        logger.debug(f"Checking events for {repo_name}.")
         logger.debug(f"Last ETag for {repo_name}: {self.last_check_etag[repo_name]}")
+
+        return json.loads(response.content)
+
+    def process_events(self, repo_name, events_json):
+
+        if not events_json:
+            return
 
         for event in reversed((events_json)):
             if event["type"] not in HANDLERS:
@@ -145,10 +153,13 @@ class GitHub:
             self.processed_events[repo_name] = event_id
             logger.debug(f"Processing event: {event['type']} ({event_id})")
 
-            logger.debug(
-                f"Checking events for {repo_name}...Found new event, updating last etag to {etag}"
-            )
             self.handle_event(event)
+
+    def check_repository_events(self, repo_name):
+        """Checks new events in every repo."""
+        response = self.fetch_repository_events(repo_name)
+        events_json = self.handle_response(repo_name, response)
+        self.process_events(repo_name, events_json)
 
     def handle_event(self, event):
         if not event:
