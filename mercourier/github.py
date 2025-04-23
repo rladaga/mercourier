@@ -97,7 +97,6 @@ class GitHub:
         )
 
     def fetch_repository_events(self, repo_name):
-
         events = get(
             f"https://api.github.com/repos/{repo_name}/events",
             headers={"If-None-Match": self.last_check_etag[repo_name]},
@@ -106,7 +105,6 @@ class GitHub:
         return events
 
     def handle_response(self, repo_name, response):
-
         rate_limit = response.headers.get("X-RateLimit-Remaining", "unknown")
         rate_limit_reset = response.headers.get("X-RateLimit-Reset", "unknown")
         rate_limit_reset_time = datetime.fromtimestamp(int(rate_limit_reset))
@@ -130,7 +128,6 @@ class GitHub:
         return json.loads(response.content)
 
     def process_events(self, repo_name, events_json):
-
         if not events_json:
             return
 
