@@ -55,12 +55,12 @@ def test_check_repository_events():
     repo_name = "rladaga/mercourier"
     processed = []
 
-    def mock_on_event(event):
+    def on_event(event):
         processed.append(event)
 
     bot = GitHub(
         repositories=[repo_name],
-        on_event=mock_on_event,
+        on_event=on_event,
         last_check_file=Path("test_last_check.json"),
     )
 
