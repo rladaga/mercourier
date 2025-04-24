@@ -19,31 +19,34 @@ def main():
         logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     )
     logger.addHandler(console_handler)
-    logging.getLogger('mercourier.github').addHandler(console_handler)
+    logging.getLogger("mercourier.github").addHandler(console_handler)
     logger.info("Starting bot...")
 
     parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "config_path",
+        nargs="?",
+        default="config_secrets.py",
+        help="Path to config file (default: config_secrets.py)",
+    )
     parser.add_argument(
         "--zulip-off", action="store_true", help="Turn off Zulip notifications"
     )
+
     args = parser.parse_args()
 
     zulip_on = not args.zulip_off
-    print(zulip_on)
 
-    config = load_config()
+    config = load_config(args.config_path)
 
     github = GitHub(
-        repositories=config.get("repositories"),
-        check_interval_s=config.get("check_interval"),
+        **config["github"],
     )
 
     zulip = ZulipBot(
-            zulip_email=config.get("zulip_email"),
-            zulip_api_key=config.get("zulip_api_key"),
-            zulip_site=config.get("zulip_site"),
-            stream_name=config.get("zulip_stream"),
-            zulip_on=zulip_on,
+        **config["zulip"],
+        zulip_on=zulip_on,
     )
 
     github.on_event = zulip.on_event
@@ -54,9 +57,10 @@ def main():
         logger.addHandler(zulip.log_handler)
         logging.getLogger("mercourier.github").addHandler(zulip.log_handler)
 
-
     def handle_signal(signum, frame):
-        logger.debug(f"Received {signal.Signals(signum).name}. Saving last check and exiting...")
+        logger.debug(
+            f"Received {signal.Signals(signum).name}. Saving last check and exiting..."
+        )
         github.save_last_check()
         logger.info("Closing bot...")
         raise SystemExit(0)

@@ -5,9 +5,24 @@ A simple Github-to-Zulip notification bot that keeps your team in the loop, avoi
 ## What It Does
 
 Mercourier watches your GitHub repos and sends important events directly to your Zulip channels:
+
 - Issue and PR activity, including comments
 - Code pushes
 - Self-monitoring (sends its own logs to a dedicated Zulip topic)
+
+### GitHub Events to Zulip Topics Mapping
+
+Here you can see which events are currently handled.
+Those not in this list are ignored.
+
+| GitHub Event | Description | Zulip Topic Format |
+|--------------|-------------|-------------------|
+| PushEvent | Code pushed to repository | `{repo_name}/push/{branch}` |
+| IssuesEvent | Issue opened, closed, etc. | `{repo_name}/issues/{issue_number}` |
+| PullRequestEvent | PR opened, closed, merged, etc. | `{repo_name}/pr/{pr_number}` |
+| IssueCommentEvent | Comment on an issue | `{repo_name}/issues/{issue_number}` |
+| IssueCommentEvent | Comment on a PR | `{repo_name}/pr/{pr_number}` |
+| Log messages | Bot's internal logs | `log/{LOG_LEVEL}` |
 
 ## Setting Up the Bot
 
@@ -32,6 +47,7 @@ git clone --bare https://github.com/rladaga/mercourier.git
 Create deployment branch locally and push it to the remote, this is what we refer below as ${BRANCH_NAME}.
 
 Then for each deployment:
+
 ```bash
 cd mercourier.git
 git fetch --prune origin "+refs/heads/${BRANCH_NAME}:refs/heads/${BRANCH_NAME}" # The branch you will use for deployment
@@ -44,16 +60,25 @@ cd ../${BRANCH_NAME}
 
 Mercourier also includes an `update.sh` script that easily fetch the latest changes and restarts the service.
 
-## Local Debugging
+## Development
+
+First you will need to install [`uv`](https://github.com/astral-sh/uv)
+
+### Local Debugging
 
 When working on Mercourier locally, use the `--zulip-off` flag to avoid spamming your team channels.
-First you will need to install `uv`
 
 ```bash
 uv run main.py --zulip-off
 ```
 
 This shows everything in your console instead, so you can see what would be sent without actually sending it.
+
+### Testing
+
+```bash
+uv run pytest
+```
 
 ## Authors
 
