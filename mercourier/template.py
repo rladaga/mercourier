@@ -126,6 +126,7 @@ def format_push_event(event):
 
 def format_issue_event(event):
     payload = event.get("payload", {})
+    print(payload)
     issue = payload.get("issue", {})
     action = payload.get("action", {})
 
@@ -169,10 +170,12 @@ def format_issue_event(event):
 
     body = ""
     if action == "opened":
-        raw_body = issue.get("body", "").strip()
-        if raw_body:
-            body = rewrite_github_issue_urls(raw_body)
-            body = f"\n{body}\n"
+        issue_body = issue.get("body", "")
+        if issue_body:
+            raw_body = issue_body.strip()
+            if raw_body:
+                body = rewrite_github_issue_urls(raw_body)
+                body = f"\n{body}\n"
 
     return ISSUE_TEMPLATE.format(
         number=number,
