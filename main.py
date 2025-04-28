@@ -27,8 +27,8 @@ def main():
     parser.add_argument(
         "config_path",
         nargs="?",
-        default="config_secrets.py",
-        help="Path to config file (default: config_secrets.py)",
+        default="config_and_secrets.py",
+        help="Path to config file (default: config_and_secrets.py)",
     )
     parser.add_argument(
         "--zulip-off", action="store_true", help="Turn off Zulip notifications"

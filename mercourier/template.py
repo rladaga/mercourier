@@ -63,6 +63,14 @@ def rewrite_github_issue_urls(body):
     return body
 
 
+html_comment_pattern = re.compile(r"<!--.*?-->", re.DOTALL)
+
+
+def remove_html_comments(body):
+    cleaned_body = html_comment_pattern.sub("", body)
+    return cleaned_body
+
+
 def format_push_event(event):
     payload = event.get("payload", {})
     if not payload:
@@ -174,7 +182,8 @@ def format_issue_event(event):
         if issue_body:
             raw_body = issue_body.strip()
             if raw_body:
-                body = rewrite_github_issue_urls(raw_body)
+                body = remove_html_comments(raw_body)
+                body = rewrite_github_issue_urls(body)
                 body = f"\n{body}\n"
 
     return ISSUE_TEMPLATE.format(
@@ -230,6 +239,7 @@ def format_pr_event(event):
     if action == "opened" and pr.get("body"):
         body = pr.get("body", "").strip()
         if body:
+            body = remove_html_comments(body)
             body = rewrite_github_issue_urls(body)
             body = rewrite_issue_numbers(body, repo_name)
             body = body.replace("|", "\\|")
@@ -283,6 +293,8 @@ def format_comment_event(event):
 
     body = comment.get("body", "").strip()
     if body:
+        body = remove_html_comments(body)
+        body = rewrite_issue_numbers(body, repo_name)
         body = rewrite_github_issue_urls(body)
         body = f"\n{body}\n"
 
