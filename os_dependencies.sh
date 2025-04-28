@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DEPENDENCIES="python python-pip python-virtualenv"
+DEPENDENCIES="uv"
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     if command -v apt &> /dev/null; then

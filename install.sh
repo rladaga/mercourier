@@ -2,12 +2,7 @@
 set -ex
 
 BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
-
-# Create a virtual environment
-python -m venv venv
-
-# Install required packages
-venv/bin/pip install -r requirements.txt
+CURRENT_USER=$(whoami)
 
 # Create systemd service file
 CURRENT_DIR=$(pwd)
@@ -22,7 +17,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=${CURRENT_DIR}
-ExecStart=${CURRENT_DIR}/venv/bin/python ${CURRENT_DIR}/main.py
+ExecStart=/usr/bin/uv run main.py
 Restart=always
 
 [Install]
@@ -33,3 +28,9 @@ FIN
 systemctl --user enable ${SERVICE_FILE}
 systemctl --user start ${SERVICE_NAME}
 systemctl --user status ${SERVICE_NAME}
+
+# This service is being set to be a user service,
+# which means that when the user logs out the systemd instance will shutdown as well as the service,
+# to keep your systemd instance and the service running after logout you need to enable lingering for your user,
+# that´s why we run the command line below.
+sudo loginctl enable-linger ${CURRENT_USER}

@@ -1,0 +1,23 @@
+name: Run linter and tests on deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+
+    - name: Run linter
+      run: uv run ruff check
+
+    - name: Run tests
+      run: uv run pytest

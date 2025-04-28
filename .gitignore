@@ -1,8 +1,9 @@
 *.json
+!tests/test_events.json
 mercourier.service
 
 # python
 *.py[cod]
 __pycache__/
-config_secrets.py
+config_and_secrets.py
 venv
