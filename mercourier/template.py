@@ -63,9 +63,10 @@ def rewrite_github_issue_urls(body):
     return body
 
 
+html_comment_pattern = re.compile(r"<!--.*?-->", re.DOTALL)
+
+
 def remove_html_comments(body):
-    """Remove HTML comments from the body."""
-    html_comment_pattern = re.compile(r"<!--.*?-->", re.DOTALL)
     cleaned_body = html_comment_pattern.sub("", body)
     return cleaned_body
 

@@ -31,8 +31,6 @@ def test_remove_html_comments():
 
     result = remove_html_comments(body)
 
-    print(result)
-
     assert (
         "<!--- The title of the PR should summarize the change implemented. -->"
         not in result
