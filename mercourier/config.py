@@ -6,4 +6,4 @@ def load_config(path="config_and_secrets.py"):
     secrets_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(secrets_module)
 
-    return secrets_module.CREDENTIALS
+    return secrets_module.CONFIG

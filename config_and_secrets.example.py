@@ -1,4 +1,4 @@
-CREDENTIALS = {
+CONFIG = {
     "github": {
         "repositories": [
             "rladaga/mercourier",
