@@ -120,6 +120,12 @@ class GitHub:
             logger.debug(f"Checking events for {repo_name}...No new events.")
             return
 
+        if response.status_code == 404:
+            logger.error(f"Repository {repo_name} not found.")
+            self.last_check_etag.pop(repo_name, None)
+            self.processed_events.pop(repo_name, None)
+            return
+
         etag = response.headers["ETag"]
         self.last_check_etag[repo_name] = etag
         logger.debug(f"Checking events for {repo_name}.")
