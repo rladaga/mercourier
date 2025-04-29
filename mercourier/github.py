@@ -5,7 +5,6 @@ import time
 from datetime import datetime
 import logging
 from pathlib import Path
-from .config import load_config
 
 
 logger = logging.getLogger(__name__)
@@ -39,7 +38,6 @@ class GitHub:
         self.on_event = on_event
         self.check_interval_s = check_interval_s
         self.current_repo_index = 0
-        self.config = load_config()
 
         logger.info("Bot initialized successfully")
 
