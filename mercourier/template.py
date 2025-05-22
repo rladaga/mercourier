@@ -38,29 +38,29 @@ def rewrite_issue_numbers(body, repo_name):
 
 
 def rewrite_github_issue_urls(body):
-    """Rewrite GitHub issue URLs in the comment body as [title](url)."""
-    issue_url_pattern = re.compile(r"https://github\.com/([^/]+)/([^/]+)/issues/(\d+)")
-    matches = issue_url_pattern.findall(body)
+    """Rewrite bare GitHub issue URLs as [title](url), skipping already-linked ones."""
+ 
+    issue_url_pattern = re.compile(
+        r'(?<!\]\()https://github\.com/([^/]+)/([^/]+)/issues/(\d+)\b'
+    )
 
-    for match in matches:
-        owner, repo, issue_number = match
-        issue_url = f"https://github.com/{owner}/{repo}/issues/{issue_number}"
+    def replacer(match):
+        owner, repo, issue_number = match.groups()
+        issue_url = match.group(0)
 
         response = get(
             f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}",
             headers={"Accept": "application/vnd.github.v3+json"},
         )
+
         if response.status_code == 200:
             issue_data = response.json()
-            issue_title = issue_data.get("title", "Unknown Issue")
-            markdown_link = f"[{issue_title}]({issue_url})"
-            body = body.replace(issue_url, markdown_link)
+            title = issue_data.get("title", "Unknown Issue")
+            return f"[{title}]({issue_url})"
         else:
-            logger.error(
-                f"Failed to fetch issue details for {issue_url}: {response.status_code}"
-            )
+            return issue_url 
 
-    return body
+    return issue_url_pattern.sub(replacer, body)
 
 
 html_comment_pattern = re.compile(r"<!--.*?-->", re.DOTALL)
