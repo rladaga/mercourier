@@ -1,4 +1,5 @@
 from .github import GitHub as GitHub, RateLimitExcedeed as RateLimitExcedeed
+from .gitlab import GitLab as GitLab
 from .zulipbot import ZulipBot as ZulipBot
 from .config import load_config as load_config
 from .template import (

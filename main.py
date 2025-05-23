@@ -1,12 +1,13 @@
 import argparse
 import signal
 import logging
-from mercourier import GitHub, load_config
+from mercourier import GitHub, load_config, GitLab
 from mercourier import ZulipBot
 
 
 logging.getLogger("mercourier.github").setLevel(logging.DEBUG)
 logging.getLogger("mercourier.zulipbot").setLevel(logging.DEBUG)
+logging.getLogger("mercourier.gitlab").setLevel(logging.DEBUG)
 
 
 def main():
@@ -20,6 +21,7 @@ def main():
     )
     logger.addHandler(console_handler)
     logging.getLogger("mercourier.github").addHandler(console_handler)
+    logging.getLogger("mercourier.gitlab").addHandler(console_handler)
     logger.info("Starting bot...")
 
     parser = argparse.ArgumentParser()
@@ -49,7 +51,12 @@ def main():
         zulip_on=zulip_on,
     )
 
+    gitlab = GitLab(
+        **config["gitlab"],
+    )
+
     github.on_event = zulip.on_event
+    gitlab.on_event = zulip.on_event
     logging.getLogger("mercourier.zulipbot").addHandler(console_handler)
 
     if zulip_on:
@@ -68,7 +75,8 @@ def main():
     signal.signal(signal.SIGTERM, handle_signal)
     signal.signal(signal.SIGINT, handle_signal)
 
-    github.run()
+    # github.run()
+    gitlab.run()
 
 
 if __name__ == "__main__":
