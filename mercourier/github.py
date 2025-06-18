@@ -126,10 +126,15 @@ class GitHub:
             self.processed_events.pop(repo_name, None)
             return
 
-        etag = response.headers["ETag"]
-        self.last_check_etag[repo_name] = etag
-        logger.debug(f"Checking events for {repo_name}.")
-        logger.debug(f"Last ETag for {repo_name}: {self.last_check_etag[repo_name]}")
+        etag = response.headers.get("ETag")
+        if etag is not None:
+            self.last_check_etag[repo_name] = etag
+            logger.debug(f"Checking events for {repo_name}.")
+            logger.debug(
+                f"Last ETag for {repo_name}: {self.last_check_etag[repo_name]}"
+            )
+        else:
+            logger.warning(f"No ETag found in response for {repo_name}")
 
         return json.loads(response.content)
 
