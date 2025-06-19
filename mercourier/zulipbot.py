@@ -53,7 +53,7 @@ class ZulipBot:
             self.log_handler = ZulipHandler(self.zulip_client, self.stream_name)
             self.log_handler.setFormatter(
                 logging.Formatter(
-                    "*%(asctime)s* - **%(name)s** - `%(levelname)s`\n\n%(message)s",
+                    "`%(asctime)s` - **%(name)s** - `%(levelname)s`\n\n%(message)s",
                     datefmt="%Y-%m-%d %H:%M:%S",
                 )
             )
