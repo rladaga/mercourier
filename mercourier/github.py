@@ -135,6 +135,7 @@ class GitHub:
             )
         else:
             logger.warning(f"No ETag found in response for {repo_name}")
+            return
 
         return json.loads(response.content)
 

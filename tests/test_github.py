@@ -92,6 +92,20 @@ def test_handle_response():
     assert result is None
 
 
+def test_etag_null_response():
+    repo_name = "user/repo"
+    bot = GitHub(
+        repositories=[repo_name],
+        on_event=lambda e: None,
+        last_check_file=Path("test_last_check.json"),
+    )
+
+    response = make_response(etag=None)
+    result = bot.handle_response(repo_name, response)
+
+    assert result is None
+
+
 def test_rate_limit_exception():
     repo_name = "user/repo"
     bot = GitHub(
