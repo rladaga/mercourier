@@ -39,9 +39,9 @@ def rewrite_issue_numbers(body, repo_name):
 
 def rewrite_github_issue_urls(body):
     """Rewrite bare GitHub issue URLs as [title](url), skipping already-linked ones."""
- 
+
     issue_url_pattern = re.compile(
-        r'(?<!\]\()https://github\.com/([^/]+)/([^/]+)/issues/(\d+)\b'
+        r"(?<!\]\()https://github\.com/([^/]+)/([^/]+)/issues/(\d+)\b"
     )
 
     def replacer(match):
@@ -58,7 +58,7 @@ def rewrite_github_issue_urls(body):
             title = issue_data.get("title", "Unknown Issue")
             return f"[{title}]({issue_url})"
         else:
-            return issue_url 
+            return issue_url
 
     return issue_url_pattern.sub(replacer, body)
 

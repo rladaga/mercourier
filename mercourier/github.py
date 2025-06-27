@@ -221,9 +221,7 @@ class GitHub:
                 events_json = self.handle_response(repo_name, response)
 
                 if events_json:
-
                     for event in reversed((events_json)):
-
                         if event["type"] not in HANDLERS:
                             continue
 
@@ -251,7 +249,7 @@ class GitHub:
     async def daily_processor(self):
         logger.info("Starting daily processor")
         while True:
-            await anyio.sleep(60*24*24)
+            await anyio.sleep(60 * 24 * 24)
             if self.accumulated_events:
                 logger.info(
                     f"Processing {len(self.accumulated_events)} accumulated events"
