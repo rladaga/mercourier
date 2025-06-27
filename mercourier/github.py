@@ -1,5 +1,7 @@
 import json
 import os
+import anyio
+import anyio.to_thread
 from requests import get
 import time
 from datetime import datetime
@@ -29,19 +31,30 @@ class GitHub:
         repositories=[],
         check_interval_s=60 * 60 * 3,
         last_check_file: Path = Path("last_check.json"),
+        accumulated_events_file: Path = Path("accumulated_events.json"),
         on_event=lambda e: None,
+        send_channel=None,
+        receive_channel=None,
+        async_mode=False,
     ):
         self.repositories = repositories
         self.last_check_etag = {}
         self.processed_events = {}
         self.last_check_file = last_check_file
+        self.accumulated_events_file = accumulated_events_file
+        self.accumulated_events = []
         self.on_event = on_event
+        self.send_channel = send_channel
+        self.receive_channel = receive_channel
         self.check_interval_s = check_interval_s
         self.current_repo_index = 0
+        self.async_mode = async_mode
 
         logger.info("Bot initialized successfully")
 
         self.load_last_check()
+        if self.async_mode:
+            self.load_accumulated_events()
 
         for repo in repositories:
             if repo not in self.last_check_etag:
@@ -59,6 +72,41 @@ class GitHub:
         with open(self.last_check_file, "w") as file:
             json.dump(state_data, file, indent=4)
         logger.info("Last check etag and processed events saved to file")
+
+        if self.async_mode:
+            if self.accumulated_events:
+                logger.info(
+                    f"Saving {len(self.accumulated_events)} accumulated events to file"
+                )
+            else:
+                logger.info("No accumulated events to save")
+
+    def save_accumulated_events(self):
+        """Save accumulated events to file."""
+        try:
+            with open(self.accumulated_events_file, "w") as file:
+                json.dump(self.accumulated_events, file, indent=4)
+            logger.info(
+                f"Saved {len(self.accumulated_events)} accumulated events to file"
+            )
+        except Exception as e:
+            logger.error(f"Failed to save accumulated events: {e}")
+
+    def load_accumulated_events(self):
+        """Load accumulated events from file."""
+        if os.path.exists(self.accumulated_events_file):
+            try:
+                with open(self.accumulated_events_file, "r") as file:
+                    self.accumulated_events = json.load(file)
+                logger.info(
+                    f"Loaded {len(self.accumulated_events)} accumulated events from file"
+                )
+            except Exception as e:
+                logger.error(f"Failed to load accumulated events: {e}")
+                self.accumulated_events = []
+        else:
+            self.accumulated_events = []
+            logger.info("Accumulated events file not found. Starting with empty list.")
 
     def load_last_check(self):
         """Load last check etag and processed events from file."""
@@ -104,6 +152,35 @@ class GitHub:
 
         return events
 
+    async def fetch_repository_events_async(self, repo_name):
+        events = await anyio.to_thread.run_sync(
+            lambda: get(
+                f"https://api.github.com/repos/{repo_name}/events",
+                headers={"If-None-Match": self.last_check_etag[repo_name]},
+            )
+        )
+
+        return events
+
+    async def run_producer(self):
+        logger.info("Starting producer for GitHub events")
+
+        while True:
+            for repo_name in self.repositories:
+                response = await self.fetch_repository_events_async(repo_name)
+
+                event_pkg = {
+                    "repo_name": repo_name,
+                    "response": response,
+                    "timestamp": datetime.now().isoformat(),
+                }
+
+                if self.send_channel:
+                    await self.send_channel.send(event_pkg)
+                    logger.debug(f"Sent event package for {repo_name} to channel")
+
+            await anyio.sleep(self.check_interval_s)
+
     def handle_response(self, repo_name, response):
         rate_limit = response.headers.get("X-RateLimit-Remaining", "unknown")
         rate_limit_reset = response.headers.get("X-RateLimit-Reset", "unknown")
@@ -132,6 +209,59 @@ class GitHub:
         logger.debug(f"Last ETag for {repo_name}: {self.last_check_etag[repo_name]}")
 
         return json.loads(response.content)
+
+    async def event_accumulator(self, receive_channel):
+        logger.info("Starting event accumulator")
+
+        async with receive_channel:
+            async for event_pkg in receive_channel:
+                repo_name = event_pkg["repo_name"]
+                response = event_pkg["response"]
+
+                events_json = self.handle_response(repo_name, response)
+
+                if events_json:
+
+                    for event in reversed((events_json)):
+
+                        if event["type"] not in HANDLERS:
+                            continue
+
+                        logger.debug(
+                            f"Found event: {event['type']} at {event['created_at']}"
+                        )
+
+                        event_id = event["id"]
+                        if (
+                            self.processed_events[repo_name]
+                            and event_id <= self.processed_events[repo_name]
+                        ):
+                            logger.debug(
+                                f"Skipping already processed event: {event['type']} at {event['created_at']}"
+                            )
+                            continue
+
+                        self.processed_events[repo_name] = event_id
+
+                        self.accumulated_events.append(event)
+                        logger.debug(
+                            f"Accumulated event {event['type']} for {repo_name}. Total: {len(self.accumulated_events)}"
+                        )
+
+    async def daily_processor(self):
+        logger.info("Starting daily processor")
+        while True:
+            await anyio.sleep(60)
+            if self.accumulated_events:
+                logger.info(
+                    f"Processing {len(self.accumulated_events)} accumulated events"
+                )
+                for event in self.accumulated_events:
+                    self.handle_event(event)
+                self.accumulated_events.clear()
+                self.save_accumulated_events()
+            else:
+                logger.info("No accumulated events to process")
 
     def process_events(self, repo_name, events_json):
         if not events_json:

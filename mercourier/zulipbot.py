@@ -96,6 +96,41 @@ class ZulipBot:
                 topic = f"{repo_name}/issues/{number}"
             self.send_message(topic=topic, content=message)
 
+    def async_on_event(self, event):
+        repo_name = event["repo"]["name"]
+        tipo = event["type"]
+        if tipo == "PushEvent":
+            branch = event["payload"]["ref"].split("/")[-1]
+
+            message = format_push_event(event)
+
+            self.send_message(topic=f"async-{repo_name}/push/{branch}", content=message)
+        elif tipo == "IssuesEvent":
+            number = event["payload"]["issue"]["number"]
+
+            message = format_issue_event(event)
+
+            self.send_message(
+                topic=f"async-{repo_name}/issues/{number}", content=message
+            )
+        elif tipo == "PullRequestEvent":
+            number = event["payload"]["pull_request"]["number"]
+
+            message = format_pr_event(event)
+
+            self.send_message(topic=f"async-{repo_name}/pr/{number}", content=message)
+        elif tipo == "IssueCommentEvent":
+            issue = event["payload"]["issue"]
+            number = issue["number"]
+
+            message = format_comment_event(event)
+
+            if "pull_request" in issue:
+                topic = f"async-{repo_name}/pr/{number}"
+            else:
+                topic = f"async-{repo_name}/issues/{number}"
+            self.send_message(topic=topic, content=message)
+
     def send_message(
         self,
         topic,
