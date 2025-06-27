@@ -17,7 +17,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=${CURRENT_DIR}
-ExecStart=/usr/bin/uv run async-main.py
+ExecStart=/usr/bin/uv run async_main.py
 Restart=always
 
 [Install]
