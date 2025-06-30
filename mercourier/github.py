@@ -78,19 +78,15 @@ class GitHub:
                 logger.info(
                     f"Saving {len(self.accumulated_events)} accumulated events to file"
                 )
+                self.save_accumulated_events()
             else:
                 logger.info("No accumulated events to save")
 
     def save_accumulated_events(self):
         """Save accumulated events to file."""
-        try:
-            with open(self.accumulated_events_file, "w") as file:
-                json.dump(self.accumulated_events, file, indent=4)
-            logger.info(
-                f"Saved {len(self.accumulated_events)} accumulated events to file"
-            )
-        except Exception as e:
-            logger.error(f"Failed to save accumulated events: {e}")
+        with open(self.accumulated_events_file, "w") as file:
+            json.dump(self.accumulated_events, file, indent=4)
+        logger.info(f"Saved {len(self.accumulated_events)} accumulated events to file")
 
     def load_accumulated_events(self):
         """Load accumulated events from file."""
@@ -258,8 +254,6 @@ class GitHub:
                     self.handle_event(event)
                 self.accumulated_events.clear()
                 self.save_accumulated_events()
-            else:
-                logger.info("No accumulated events to process")
 
     def process_events(self, repo_name, events_json):
         if not events_json:
