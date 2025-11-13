@@ -5,6 +5,10 @@ from .template import (
     format_push_event,
     format_issue_event,
     format_comment_event,
+    validate_push_event,
+    validate_issue_event,
+    validate_pr_event,
+    validate_comment_event,
 )
 
 
@@ -64,37 +68,60 @@ class ZulipBot:
             logger.info(f"Zulip client connected to {zulip_site} as {zulip_email}")
 
     def on_event(self, event):
-        repo_name = event["repo"]["name"]
-        tipo = event["type"]
-        if tipo == "PushEvent":
-            branch = event["payload"]["ref"].split("/")[-1]
+        try:
+            repo_name = event.get("repo", {}).get("name", "unknown")
+            tipo = event.get("type")
 
-            message = format_push_event(event)
+            if tipo == "PushEvent":
+                if not validate_push_event(event):
+                    logger.warning(f"Skipping invalid PushEvent for {repo_name}")
+                    return
 
-            self.send_message(topic=f"{repo_name}/push/{branch}", content=message)
-        elif tipo == "IssuesEvent":
-            number = event["payload"]["issue"]["number"]
+                branch = event["payload"]["ref"].split("/")[-1]
+                message = format_push_event(event)
 
-            message = format_issue_event(event)
+                self.send_message(topic=f"{repo_name}/push/{branch}", content=message)
 
-            self.send_message(topic=f"{repo_name}/issues/{number}", content=message)
-        elif tipo == "PullRequestEvent":
-            number = event["payload"]["pull_request"]["number"]
+            elif tipo == "IssuesEvent":
+                if not validate_issue_event(event):
+                    logger.warning(f"Skipping invalid IssuesEvent for {repo_name}")
+                    return
 
-            message = format_pr_event(event)
+                number = event["payload"]["issue"]["number"]
+                message = format_issue_event(event)
 
-            self.send_message(topic=f"{repo_name}/pr/{number}", content=message)
-        elif tipo == "IssueCommentEvent":
-            issue = event["payload"]["issue"]
-            number = issue["number"]
+                self.send_message(topic=f"{repo_name}/issues/{number}", content=message)
 
-            message = format_comment_event(event)
+            elif tipo == "PullRequestEvent":
+                if not validate_pr_event(event):
+                    logger.warning(f"Skipping invalid PullRequestEvent for {repo_name}")
+                    return
 
-            if "pull_request" in issue:
-                topic = f"{repo_name}/pr/{number}"
-            else:
-                topic = f"{repo_name}/issues/{number}"
-            self.send_message(topic=topic, content=message)
+                number = event["payload"]["pull_request"]["number"]
+                message = format_pr_event(event)
+
+                self.send_message(topic=f"{repo_name}/pr/{number}", content=message)
+
+            elif tipo == "IssueCommentEvent":
+                if not validate_comment_event(event):
+                    logger.warning(
+                        f"Skipping invalid IssueCommentEvent for {repo_name}"
+                    )
+                    return
+
+                issue = event["payload"]["issue"]
+                number = issue["number"]
+                message = format_comment_event(event)
+
+                if "pull_request" in issue:
+                    topic = f"{repo_name}/pr/{number}"
+                else:
+                    topic = f"{repo_name}/issues/{number}"
+                self.send_message(topic=topic, content=message)
+
+        except Exception as e:
+            logger.error(f"Error processing event for {repo_name}: {e}", exc_info=True)
+            raise
 
     def send_message(
         self,
