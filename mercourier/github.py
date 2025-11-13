@@ -159,10 +159,13 @@ class GitHub:
                 )
                 continue
 
-            self.processed_events[repo_name] = event_id
             logger.debug(f"Processing event: {event['type']} ({event_id})")
 
-            self.handle_event(event)
+            try:
+                self.handle_event(event)
+                self.processed_events[repo_name] = event_id
+            except Exception as e:
+                logger.error(f"Error processing event {event_id}: {e}", exc_info=True)
 
     def check_repository_events(self, repo_name):
         """Checks new events in every repo."""
