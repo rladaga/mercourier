@@ -7,6 +7,141 @@ import logging
 logger = logging.getLogger("mercourier.github")
 
 
+def validate_push_event(event):
+    try:
+        if event.get("type") != "PushEvent":
+            logger.warning(
+                f"Invalid event type: expected PushEvent, got {event.get('type')}"
+            )
+            return False
+
+        if not event.get("repo", {}).get("name"):
+            logger.warning("Push event missing repo.name")
+            return False
+
+        payload = event.get("payload", {})
+        if not payload:
+            logger.warning("Push event missing payload")
+            return False
+
+        if not payload.get("ref"):
+            logger.warning("Push event missing payload.ref")
+            return False
+
+        if not event.get("actor", {}).get("login"):
+            logger.warning("Push event missing actor.login")
+            return False
+
+        commits = payload.get("commits", [])
+        has_commits_array = bool(commits)
+        has_commit_hashes = payload.get("before") and payload.get("head")
+
+        if not has_commits_array and not has_commit_hashes:
+            logger.warning(
+                "Push event has neither commits array nor before/head hashes"
+            )
+            return False
+
+        return True
+
+    except Exception as e:
+        logger.warning(f"Error validating push event: {e}")
+        return False
+
+
+def validate_issue_event(event):
+    try:
+        if event.get("type") != "IssuesEvent":
+            logger.warning(
+                f"Invalid event type: expected IssuesEvent, got {event.get('type')}"
+            )
+            return False
+
+        if not event.get("repo", {}).get("name"):
+            logger.warning("Issue event missing repo.name")
+            return False
+
+        payload = event.get("payload", {})
+        if not payload:
+            logger.warning("Issue event missing payload")
+            return False
+
+        if not payload.get("issue", {}).get("number"):
+            logger.warning("Issue event missing payload.issue.number")
+            return False
+
+        if not event.get("actor", {}).get("login"):
+            logger.warning("Issue event missing actor.login")
+            return False
+
+        return True
+    except Exception as e:
+        logger.warning(f"Error validating issue event: {e}")
+        return False
+
+
+def validate_pr_event(event):
+    try:
+        if event.get("type") != "PullRequestEvent":
+            logger.warning(
+                f"Invalid event type: expected PullRequestEvent, got {event.get('type')}"
+            )
+            return False
+
+        if not event.get("repo", {}).get("name"):
+            logger.warning("PR event missing repo.name")
+            return False
+
+        payload = event.get("payload", {})
+        if not payload:
+            logger.warning("PR event missing payload")
+            return False
+
+        if not payload.get("pull_request", {}).get("number"):
+            logger.warning("PR event missing payload.pull_request.number")
+            return False
+
+        if not event.get("actor", {}).get("login"):
+            logger.warning("PR event missing actor.login")
+            return False
+
+        return True
+    except Exception as e:
+        logger.warning(f"Error validating PR event: {e}")
+        return False
+
+
+def validate_comment_event(event):
+    try:
+        if event.get("type") != "IssueCommentEvent":
+            logger.warning(
+                f"Invalid event type: expected IssueCommentEvent, got {event.get('type')}"
+            )
+            return False
+
+        if not event.get("repo", {}).get("name"):
+            logger.warning("Comment event missing repo.name")
+            return False
+
+        payload = event.get("payload", {})
+        if not payload:
+            logger.warning("Comment event missing payload")
+            return False
+
+        if not payload.get("issue", {}).get("number"):
+            logger.warning("Comment event missing payload.issue.number")
+            return False
+
+        if not event.get("actor", {}).get("login"):
+            logger.warning("Comment event missing actor.login")
+            return False
+
+        return True
+    except Exception as e:
+        logger.warning(f"Error validating comment event: {e}")
+        return False
+
+
 def load_template(template_name):
     with open(os.path.join("templates", f"{template_name}.md"), encoding="utf-8") as f:
         return f.read()
@@ -39,9 +174,9 @@ def rewrite_issue_numbers(body, repo_name):
 
 def rewrite_github_issue_urls(body):
     """Rewrite bare GitHub issue URLs as [title](url), skipping already-linked ones."""
- 
+
     issue_url_pattern = re.compile(
-        r'(?<!\]\()https://github\.com/([^/]+)/([^/]+)/issues/(\d+)\b'
+        r"(?<!\]\()https://github\.com/([^/]+)/([^/]+)/issues/(\d+)\b"
     )
 
     def replacer(match):
@@ -58,7 +193,7 @@ def rewrite_github_issue_urls(body):
             title = issue_data.get("title", "Unknown Issue")
             return f"[{title}]({issue_url})"
         else:
-            return issue_url 
+            return issue_url
 
     return issue_url_pattern.sub(replacer, body)
 
@@ -112,6 +247,11 @@ def format_push_event(event):
                 commit_url=commit_url,
                 commit_time_str=commit_time_str,
             )
+    else:
+        before = payload.get("before", "unknown")[:7]
+        head = payload.get("head", "unknown")[:7]
+        if before != "unknown" and head != "unknown" and before != head:
+            commit_messages = f"[{before}...{head}](https://github.com/{repo_name}/compare/{before}...{head})"
 
     force_push = "\n⚠️ This was a force push!\n" if payload.get("forced") else ""
     branch_created = (
@@ -121,11 +261,17 @@ def format_push_event(event):
         f"\n❌ Branch `{branch}` was deleted\n" if payload.get("deleted") else ""
     )
 
+    if not commit_messages:
+        if not (branch_created or branch_deleted):
+            commit_messages = "No commits found in push event."
+
+    commit_count_str = f" {len(commits)}" if len(commits) > 0 else ""
+
     return PUSH_TEMPLATE.format(
-        commit_count=len(commits),
+        commit_count=commit_count_str,
         username=username,
         user_url=user_url,
-        commit_messages=commit_messages or "No commits found in push event.",
+        commit_messages=commit_messages,
         force_push=force_push,
         branch_created=branch_created,
         branch_deleted=branch_deleted,
