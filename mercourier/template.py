@@ -206,12 +206,28 @@ def remove_html_comments(body):
     return cleaned_body
 
 
+def get_commits_in_push(repo_name, before, head):
+    """Fetch all commits between before and head SHA"""
+    try:
+        url = f"https://api.github.com/repos/{repo_name}/compare/{before}...{head}"
+        response = get(url, headers={"Accept": "application/vnd.github.v3+json"})
+
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("commits", [])
+        else:
+            logger.error(f"Failed to fetch commits: {response.status_code}")
+            return []
+    except Exception as e:
+        logger.error(f"Error fetching commits: {e}")
+        return []
+
+
 def format_push_event(event):
     payload = event.get("payload", {})
     if not payload:
         return None
 
-    commits = payload.get("commits", [])
     ref = payload.get("ref", "")
     if not ref:
         return None
@@ -221,37 +237,41 @@ def format_push_event(event):
     user_url = f"https://github.com/{username}"
     repo_name = event.get("repo", {}).get("name", "unknown")
 
+    commits = payload.get("commits", [])
+
+    if not commits:
+        before = payload.get("before", "")
+        head = payload.get("head", "")
+        if before and head and before != head:
+            commits = get_commits_in_push(repo_name, before, head)
+
     pr_pattern = re.compile(r"\(#(\d+)\)")
     commit_messages = ""
 
-    if commits:
-        for commit in commits:
-            commit_msg = commit.get("message", "No message").split("\n")[0]
-            commit_sha = commit.get("id", commit.get("sha", "unknown"))[:7]
-            commit_url = f"https://github.com/{repo_name}/commit/{commit_sha}"
+    for commit in commits:
+        commit_msg = commit.get("message") or commit.get("commit", {}).get(
+            "message", "No message"
+        )
+        commit_msg = commit_msg.split("\n")[0]
+        commit_sha = commit.get("id") or commit.get("sha", "unknown")
+        commit_sha = commit_sha[:7]
+        commit_url = f"https://github.com/{repo_name}/commit/{commit_sha}"
 
-            pr_match = pr_pattern.search(commit_msg)
-            if pr_match:
-                pr_number = pr_match.group(1)
-                pr_url = f"https://github.com/{repo_name}/pull/{pr_number}"
-                commit_msg = pr_pattern.sub(f"([#{pr_number}]({pr_url}))", commit_msg)
+        pr_match = pr_pattern.search(commit_msg)
+        if pr_match:
+            pr_number = pr_match.group(1)
+            pr_url = f"https://github.com/{repo_name}/pull/{pr_number}"
+            commit_msg = pr_pattern.sub(f"([#{pr_number}]({pr_url}))", commit_msg)
 
-            commit_time = datetime.strptime(
-                event.get("created_at"), "%Y-%m-%dT%H:%M:%SZ"
-            )
-            commit_time_str = commit_time.strftime("%Y-%m-%d %H:%M:%S")
+        commit_time = datetime.strptime(event.get("created_at"), "%Y-%m-%dT%H:%M:%SZ")
+        commit_time_str = commit_time.strftime("%Y-%m-%d %H:%M:%S")
 
-            commit_messages += COMMIT_TEMPLATE.format(
-                commit_msg=commit_msg,
-                commit_sha=commit_sha,
-                commit_url=commit_url,
-                commit_time_str=commit_time_str,
-            )
-    else:
-        before = payload.get("before", "unknown")[:7]
-        head = payload.get("head", "unknown")[:7]
-        if before != "unknown" and head != "unknown" and before != head:
-            commit_messages = f"[{before}...{head}](https://github.com/{repo_name}/compare/{before}...{head})"
+        commit_messages += COMMIT_TEMPLATE.format(
+            commit_msg=commit_msg,
+            commit_sha=commit_sha,
+            commit_url=commit_url,
+            commit_time_str=commit_time_str,
+        )
 
     force_push = "\n⚠️ This was a force push!\n" if payload.get("forced") else ""
     branch_created = (
